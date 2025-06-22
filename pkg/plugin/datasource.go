@@ -256,7 +256,12 @@ func (d *ReductDatasource) reductQuery(ctx context.Context, query backend.DataQu
 		options.Stop = qm.Options.Stop
 	}
 	if qm.Options.When != nil {
-		options.When = qm.Options.When
+		// if its empty string, set it to nil
+		if qm.Options.When == "" {
+			options.When = nil
+		} else {
+			options.When = qm.Options.When
+		}
 	}
 	if qm.Options.Ext != nil {
 		options.Ext = qm.Options.Ext

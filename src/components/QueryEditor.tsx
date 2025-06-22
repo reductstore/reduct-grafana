@@ -16,9 +16,6 @@ const queryTypes: Array<ComboboxOption<string>> = [
   { label: 'Query Records', value: 'queryRecords' },
 ];
 
-const DEFAULT_WHEN_QUERY = `{
-  "&label_name": { "$gt": 10 }
-}`;
 
 export function QueryEditor({ query, onChange, onRunQuery }: Props) {
   const onQueryTypeChange = (value: ComboboxOption<string>) => {
@@ -153,7 +150,7 @@ export function QueryEditor({ query, onChange, onRunQuery }: Props) {
               language="json"
               showLineNumbers={true}
               height="200px"
-              value={query.options?.when || DEFAULT_WHEN_QUERY}
+              value={query.options?.when || ''}
               onBlur={onWhenChange}
               showMiniMap={false}
             />
