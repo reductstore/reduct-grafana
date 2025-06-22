@@ -1,8 +1,6 @@
 module github.com/reductstore/reductstore
 
 go 1.24.1
-	
-replace github.com/reductstore/reduct-go => ../reduct-go
 
 require (
 	github.com/grafana/grafana-plugin-sdk-go v0.277.1

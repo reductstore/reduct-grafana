@@ -9,7 +9,6 @@ export interface MyQuery extends DataQuery {
 }
 
 export interface QueryOptions {
-  queryType: 'QUERY';
   start?: number;
   stop?: number;
   when?: any;
