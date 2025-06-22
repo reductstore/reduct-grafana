@@ -1,12 +1,12 @@
 import React, { ChangeEvent } from 'react';
-import { CodeEditor, InlineField, Input, Select, Stack, Switch } from '@grafana/ui';
-import { QueryEditorProps, SelectableValue } from '@grafana/data';
+import { CodeEditor, InlineField, Input, Combobox, Stack, Switch, ComboboxOption } from '@grafana/ui';
+import { QueryEditorProps } from '@grafana/data';
 import { DataSource } from '../datasource';
 import { MyDataSourceOptions, MyQuery, QueryOptions } from '../types';
 
 type Props = QueryEditorProps<DataSource, MyQuery, MyDataSourceOptions>;
 
-const queryTypes: Array<SelectableValue<string>> = [
+const queryTypes: Array<ComboboxOption<string>> = [
   { label: 'List Buckets', value: 'listBuckets' },
   { label: 'Get Bucket Entries', value: 'getBucketEntries' },
   { label: 'Get Bucket Setting', value: 'getBucketSetting' },
@@ -21,7 +21,7 @@ const DEFAULT_WHEN_QUERY = `{
 }`;
 
 export function QueryEditor({ query, onChange, onRunQuery }: Props) {
-  const onQueryTypeChange = (value: SelectableValue<string>) => {
+  const onQueryTypeChange = (value: ComboboxOption<string>) => {
     onChange({ ...query, queryType: value.value as 'listBuckets' | 'getBucketEntries' | 'getBucketSetting' | 'getInfo' | 'listTokens' | 'getReplicationTasks' | 'queryRecords' });
     onRunQuery();
   };
@@ -77,7 +77,7 @@ export function QueryEditor({ query, onChange, onRunQuery }: Props) {
     <Stack direction="column" gap={2}>
       <Stack direction="row" gap={2}>
         <InlineField label="Query Type" labelWidth={16}>
-          <Select
+          <Combobox
             options={queryTypes}
             value={query.queryType}
             onChange={onQueryTypeChange}
