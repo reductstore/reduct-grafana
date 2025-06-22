@@ -19,7 +19,6 @@ export class DataSource extends DataSourceWithBackend<MyQuery, MyDataSourceOptio
       bucket: getTemplateSrv().replace(query.bucket, scopedVars),
       entry: getTemplateSrv().replace(query.entry, scopedVars),
       options: {
-        queryType: 'QUERY',
         start: Number(getTemplateSrv().replace(query.options?.start?.toString(), scopedVars)),
         stop: Number(getTemplateSrv().replace(query.options?.stop?.toString(), scopedVars)),
         when: getTemplateSrv().replace(query.options?.when, scopedVars),
