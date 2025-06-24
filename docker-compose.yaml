@@ -3,3 +3,12 @@ services:
     extends:
       file: .config/docker-compose-base.yaml
       service: grafana
+    depends_on:
+      - reductstore
+
+  reductstore:
+    image: 'reduct/store:latest'
+    ports:
+      - 8383:8383/tcp
+    environment:
+      RS_API_TOKEN: "token"
