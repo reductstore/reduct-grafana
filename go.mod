@@ -4,7 +4,7 @@ go 1.24.1
 
 require (
 	github.com/grafana/grafana-plugin-sdk-go v0.277.1
-	github.com/reductstore/reduct-go v1.15.0
+	github.com/reductstore/reduct-go v1.15.1
 )
 
 require (

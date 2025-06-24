@@ -9,15 +9,6 @@ export function ConfigEditor(props: Props) {
   const { onOptionsChange, options } = props;
   const { jsonData, secureJsonFields, secureJsonData } = options;
 
-  const onPathChange = (event: ChangeEvent<HTMLInputElement>) => {
-    onOptionsChange({
-      ...options,
-      jsonData: {
-        ...jsonData,
-        path: event.target.value,
-      },
-    });
-  };
 
   const onServerTokenChange = (event: ChangeEvent<HTMLInputElement>) => {
     onOptionsChange({
@@ -63,7 +54,7 @@ export function ConfigEditor(props: Props) {
 
   return (
     <>
-      <InlineField label="Server URL" labelWidth={14} required tooltip="The URL of your ReductStore server">
+      <InlineField label="URL" labelWidth={20} required tooltip="The URL of your ReductStore server">
         <Input
           id="config-editor-server-url"
           value={jsonData.serverURL || ''}
@@ -72,7 +63,7 @@ export function ConfigEditor(props: Props) {
           width={40}
         />
       </InlineField>
-      <InlineField label="Server Token" labelWidth={14} required tooltip="Your ReductStore API token">
+      <InlineField label="Token" labelWidth={20} required tooltip="Your ReductStore API token">
         <SecretInput
           id="config-editor-server-token"
           isConfigured={secureJsonFields.serverToken}
@@ -83,20 +74,11 @@ export function ConfigEditor(props: Props) {
           onChange={onServerTokenChange}
         />
       </InlineField>
-      <InlineField label="Verify SSL" labelWidth={14} tooltip="Enable SSL certificate verification">
+      <InlineField label="Verify SSL" labelWidth={20} tooltip="Enable SSL certificate verification">
         <Switch
           id="config-editor-verify-ssl"
           value={jsonData.verifySSL}
           onChange={onVerifySSLChange}
-        />
-      </InlineField>
-      <InlineField label="Path" labelWidth={14} tooltip="Optional path prefix">
-        <Input
-          id="config-editor-path"
-          value={jsonData.path || ''}
-          placeholder="/api/v1"
-          onChange={onPathChange}
-          width={40}
         />
       </InlineField>
     </>

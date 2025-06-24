@@ -1,8 +1,8 @@
 {
   "$schema": "https://raw.githubusercontent.com/grafana/grafana/main/docs/sources/developers/plugins/plugin.schema.json",
   "type": "datasource",
-  "name": "Reductstore",
-  "id": "reductstore-reductstore-datasource",
+  "name": "ReductStore",
+  "id": "reductstore-datasource",
   "metrics": true,
   "backend": true,
   "executable": "gpx_reductstore",
@@ -13,8 +13,8 @@
     },
     "keywords": ["datasource"],
     "logos": {
-      "small": "img/logo.svg",
-      "large": "img/logo.svg"
+      "small": "https://www.reduct.store/img/logo.webp",
+      "large": "https://www.reduct.store/img/logo.webp"
     },
     "links": [],
     "screenshots": [],
