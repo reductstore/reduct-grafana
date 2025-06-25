@@ -46,3 +46,4 @@ ci/
 .eslintcache
 .vscode
 data
+.reductstore

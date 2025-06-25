@@ -30,8 +30,8 @@ func NewDatasource(ctx context.Context, settings backend.DataSourceInstanceSetti
 		return nil, fmt.Errorf("load plugin settings: %w", err)
 	}
 	// check both server url and server token are in the plugin settings
-	if pluginSettings.ServerURL == "" || pluginSettings.Secrets.ServerToken == "" {
-		return nil, fmt.Errorf("server url and server token are required")
+	if pluginSettings.ServerURL == "" {
+		return nil, fmt.Errorf("server url is required")
 	}
 	client := reductgo.NewClient(pluginSettings.ServerURL, reductgo.ClientOptions{
 		APIToken:  pluginSettings.Secrets.ServerToken,
@@ -102,11 +102,6 @@ func (d *ReductDatasource) CheckHealth(ctx context.Context, req *backend.CheckHe
 		return res, nil
 	}
 
-	if pluginSettings.Secrets.ServerToken == "" {
-		res.Status = backend.HealthStatusError
-		res.Message = "Server token is missing"
-		return res, nil
-	}
 	// check for server url
 	if pluginSettings.ServerURL == "" {
 		res.Status = backend.HealthStatusError
