@@ -63,7 +63,7 @@ export function ConfigEditor(props: Props) {
           width={40}
         />
       </InlineField>
-      <InlineField label="Token" labelWidth={20} required tooltip="Your ReductStore API token">
+      <InlineField label="Token" labelWidth={20} tooltip="Your ReductStore API token">
         <SecretInput
           id="config-editor-server-token"
           isConfigured={secureJsonFields.serverToken}
@@ -75,11 +75,15 @@ export function ConfigEditor(props: Props) {
         />
       </InlineField>
       <InlineField label="Verify SSL" labelWidth={20} tooltip="Enable SSL certificate verification">
-        <Switch
-          id="config-editor-verify-ssl"
-          value={jsonData.verifySSL}
-          onChange={onVerifySSLChange}
-        />
+        <div style={{ display: 'flex', alignItems: 'center', height: '32px' }}>
+          <Switch
+            id="config-editor-verify-ssl"
+            defaultChecked={true}
+            value={jsonData.verifySSL}
+            width={40}
+            onChange={onVerifySSLChange}
+          />
+        </div>
       </InlineField>
     </>
   );
