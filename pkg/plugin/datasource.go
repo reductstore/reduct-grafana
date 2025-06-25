@@ -31,7 +31,7 @@ func NewDatasource(ctx context.Context, settings backend.DataSourceInstanceSetti
 	}
 	// check both server url and server token are in the plugin settings
 	if pluginSettings.ServerURL == "" {
-		return nil, fmt.Errorf("server url is required")
+		return nil, fmt.Errorf("server URL is missing")
 	}
 	client := reductgo.NewClient(pluginSettings.ServerURL, reductgo.ClientOptions{
 		APIToken:  pluginSettings.Secrets.ServerToken,
@@ -39,7 +39,7 @@ func NewDatasource(ctx context.Context, settings backend.DataSourceInstanceSetti
 	})
 	_, err = client.IsLive(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("check health: %w", err)
+		return nil, fmt.Errorf("check health failed: %w", err)
 	}
 
 	return &ReductDatasource{reductClient: client}, nil
@@ -94,7 +94,7 @@ func (d *ReductDatasource) query(_ context.Context, _ backend.PluginContext, _ b
 // a datasource is working as expected.
 func (d *ReductDatasource) CheckHealth(ctx context.Context, req *backend.CheckHealthRequest) (*backend.CheckHealthResult, error) {
 	res := &backend.CheckHealthResult{}
-	// url is not in secured json data, its in json data
+
 	pluginSettings, err := models.LoadPluginSettings(*req.PluginContext.DataSourceInstanceSettings)
 	if err != nil {
 		res.Status = backend.HealthStatusError

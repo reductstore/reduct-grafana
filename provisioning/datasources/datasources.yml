@@ -9,6 +9,5 @@ datasources:
     version: 1
     editable: true
     jsonData:
-      path: '/resources'
-    secureJsonData:
       serverURL: 'http://reductstore:8383'
+    secureJsonData:
