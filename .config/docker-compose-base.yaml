@@ -1,7 +1,7 @@
 services:
   grafana:
     user: root
-    container_name: 'reductstore-reductstore-datasource'
+    container_name: 'reductstore-datasource'
 
     build:
       context: .
@@ -19,13 +19,13 @@ services:
     cap_add:
       - SYS_PTRACE
     volumes:
-      - ../dist:/var/lib/grafana/plugins/reductstore-reductstore-datasource
+      - ../dist:/var/lib/grafana/plugins/reductstore-datasource
       - ../provisioning:/etc/grafana/provisioning
-      - ..:/root/reductstore-reductstore-datasource
+      - ..:/root/reductstore-datasource
 
     environment:
       NODE_ENV: development
-      GF_LOG_FILTERS: plugin.reductstore-reductstore-datasource:debug
+      GF_LOG_FILTERS: plugin.reductstore-datasource:debug
       GF_LOG_LEVEL: debug
       GF_DATAPROXY_LOGGING: 1
-      GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS: reductstore-reductstore-datasource
+      GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS: reductstore-datasource

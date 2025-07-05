@@ -2,13 +2,12 @@ apiVersion: 1
 
 datasources:
   - name: 'reductstore'
-    type: 'reductstore-reductstore-datasource'
+    type: 'reductstore-datasource'
     access: proxy
     isDefault: false
     orgId: 1
     version: 1
     editable: true
     jsonData:
-      path: '/resources'
+      serverURL: 'http://reductstore:8383'
     secureJsonData:
-      apiKey: 'api-key'

@@ -6,9 +6,14 @@ import (
 	"fmt"
 	"strings"
 
+	"fmt"
+
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
 	"github.com/grafana/grafana-plugin-sdk-go/backend/instancemgmt"
 	"github.com/grafana/grafana-plugin-sdk-go/data"
+
+	"github.com/grafana/grafana-plugin-sdk-go/backend"
+	"github.com/grafana/grafana-plugin-sdk-go/backend/instancemgmt"
 	reductgo "github.com/reductstore/reduct-go"
 	"github.com/reductstore/reductstore/pkg/models"
 )
@@ -26,28 +31,14 @@ var (
 
 // NewDatasource creates a new datasource instance.
 func NewDatasource(ctx context.Context, settings backend.DataSourceInstanceSettings) (instancemgmt.Instance, error) {
-	// opts, err := settings.HTTPClientOptions(ctx)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("http client options: %w", err)
-	// }
-
-	// // Important: Reuse the same client for each query to avoid using all available connections on a host.
-
-	// opts.ForwardHTTPHeaders = true
-
-	// cl, err := httpclient.New(opts)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("httpclient new: %w", err)
-	// }
 	// Get the URL and API token from JSON config
 	pluginSettings, err := models.LoadPluginSettings(settings)
 	if err != nil {
 		return nil, fmt.Errorf("load plugin settings: %w", err)
 	}
 	// check both server url and server token are in the plugin settings
-	fmt.Println("pluginSettings", pluginSettings)
-	if pluginSettings.ServerURL == "" || pluginSettings.Secrets.ServerToken == "" {
-		return nil, fmt.Errorf("server url and server token are required")
+	if pluginSettings.ServerURL == "" {
+		return nil, fmt.Errorf("server URL is missing")
 	}
 	client := reductgo.NewClient(pluginSettings.ServerURL, reductgo.ClientOptions{
 		APIToken:  pluginSettings.Secrets.ServerToken,
@@ -55,7 +46,7 @@ func NewDatasource(ctx context.Context, settings backend.DataSourceInstanceSetti
 	})
 	_, err = client.IsLive(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("check health: %w", err)
+		return nil, fmt.Errorf("check health failed: %w", err)
 	}
 
 	return &ReductDatasource{reductClient: client}, nil
@@ -404,11 +395,6 @@ func (d *ReductDatasource) CheckHealth(ctx context.Context, req *backend.CheckHe
 		return res, nil
 	}
 
-	if pluginSettings.Secrets.ServerToken == "" {
-		res.Status = backend.HealthStatusError
-		res.Message = "Server token is missing"
-		return res, nil
-	}
 	// check for server url
 	if pluginSettings.ServerURL == "" {
 		res.Status = backend.HealthStatusError
