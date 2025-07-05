@@ -6,14 +6,10 @@ import (
 	"fmt"
 	"strings"
 
-	"fmt"
-
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
 	"github.com/grafana/grafana-plugin-sdk-go/backend/instancemgmt"
 	"github.com/grafana/grafana-plugin-sdk-go/data"
 
-	"github.com/grafana/grafana-plugin-sdk-go/backend"
-	"github.com/grafana/grafana-plugin-sdk-go/backend/instancemgmt"
 	reductgo "github.com/reductstore/reduct-go"
 	"github.com/reductstore/reductstore/pkg/models"
 )
