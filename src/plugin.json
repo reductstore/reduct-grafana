@@ -5,7 +5,7 @@
   "id": "reductstore-datasource",
   "metrics": true,
   "backend": true,
-  "executable": "gpx_reductstore",
+  "executable": "reductstore-datasource",
   "info": {
     "description": "",
     "author": {
