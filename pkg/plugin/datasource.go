@@ -6,7 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
@@ -99,17 +102,24 @@ func (d *ReductDatasource) QueryData(ctx context.Context, req *backend.QueryData
 				},
 			}, nil
 		}
-		from := q.TimeRange.From
-		to := q.TimeRange.To
+		from := q.TimeRange.From.UTC()
+		to := q.TimeRange.To.UTC()
 		log.DefaultLogger.Debug("Querying", "entry", qm.Entry, "from", from, "to", to)
-
-		options := reductgo.NewQueryOptionsBuilder().
-			WithStart(from.Unix()).
-			WithStop(to.Unix()).
-			WithHead(true).
-			Build()
-		log.DefaultLogger.Debug("Querying", "options", options, "head", options.Head)
-		res := d.query(ctx, req.PluginContext, qm.Bucket, qm.Entry, options)
+		if from.After(to) {
+			return &backend.QueryDataResponse{
+				Responses: map[string]backend.DataResponse{
+					q.RefID: backend.ErrDataResponse(backend.StatusBadRequest, "from time is after to time"),
+				},
+			}, nil
+		}
+		options := reductgo.NewQueryOptionsBuilder().WithHead(true)
+		if !from.IsZero() {
+			options.WithStart(from.UnixMicro())
+		}
+		if !to.IsZero() {
+			options.WithStop(to.UnixMicro())
+		}
+		res := d.query(ctx, req.PluginContext, qm.Bucket, qm.Entry, options.Build())
 		// save the response in a hashmap
 		// based on with RefID as identifier
 		response.Responses[q.RefID] = res
@@ -126,8 +136,7 @@ func (d *ReductDatasource) query(ctx context.Context, pCtx backend.PluginContext
 		log.DefaultLogger.Error("Failed to get bucket", "error", err)
 		return backend.ErrDataResponse(backend.StatusBadRequest, fmt.Sprintf("get bucket: %v", err.Error()))
 	}
-
-	records, err := bucket.BeginMetadataRead(ctx, entry, nil)
+	records, err := bucket.Query(ctx, entry, &options)
 	if err != nil {
 		log.DefaultLogger.Error("Failed to query", "error", err)
 		return backend.ErrDataResponse(backend.StatusBadRequest, fmt.Sprintf("query: %v", err.Error()))
@@ -135,36 +144,173 @@ func (d *ReductDatasource) query(ctx context.Context, pCtx backend.PluginContext
 
 	// Build a time series frame
 	times := make([]time.Time, 0)
-	labels := make([]string, 0)
-	sizes := make([]int64, 0)
 	contentTypes := make([]string, 0)
-	// log the records
-	log.DefaultLogger.Debug("Records", "records", records)
-	for key, value := range records.Labels() {
-		labels = append(labels, fmt.Sprintf("%s:%v", key, value))
-		times = append(times, time.Unix(records.Time(), 0))
-		sizes = append(sizes, records.Size())
-		contentTypes = append(contentTypes, records.ContentType())
-	}
-	if len(contentTypes) == 0 {
-		contentTypes = append(contentTypes, "application/octet-stream")
-	}
-	if len(labels) == 0 {
-		labels = append(labels, "label1:value1,label2:value2")
-	}
-	if len(times) == 0 {
-		times = append(times, time.Now())
-	}
-	if len(sizes) == 0 {
-		sizes = append(sizes, 100)
+	labelFieldsInt64 := make(map[string][]*int64)
+	labelFieldsFloat64 := make(map[string][]*float64)
+	labelFieldsBool := make(map[string][]*bool)
+	labelFieldsString := make(map[string][]*string)
+	labelFieldsTime := make(map[string][]*time.Time)
+	labelFieldsJson := make(map[string][]json.RawMessage)
+	labelTypes := make(map[string]string) // Track the type of each label
+
+	for record := range records.Records() {
+		for key, value := range record.Labels() {
+			strValue := fmt.Sprintf("%v", value)
+			if _, exists := labelTypes[key]; !exists {
+				// Try to determine type from first value
+				if v, err := strconv.ParseInt(strValue, 10, 64); err == nil {
+					labelTypes[key] = "int64"
+					labelFieldsInt64[key] = make([]*int64, len(times))
+					val := v
+					labelFieldsInt64[key] = append(labelFieldsInt64[key], &val)
+				} else if v, err := strconv.ParseFloat(strValue, 64); err == nil {
+					labelTypes[key] = "float64"
+					labelFieldsFloat64[key] = make([]*float64, len(times))
+					val := v
+					labelFieldsFloat64[key] = append(labelFieldsFloat64[key], &val)
+				} else if strings.EqualFold(strValue, "true") || strings.EqualFold(strValue, "false") {
+					labelTypes[key] = "bool"
+					labelFieldsBool[key] = make([]*bool, len(times))
+					val := strings.EqualFold(strValue, "true")
+					labelFieldsBool[key] = append(labelFieldsBool[key], &val)
+				} else if t, err := time.Parse(time.RFC3339, strValue); err == nil {
+					labelTypes[key] = "time"
+					labelFieldsTime[key] = make([]*time.Time, len(times))
+					labelFieldsTime[key] = append(labelFieldsTime[key], &t)
+				} else if json.Valid([]byte(strValue)) {
+					labelTypes[key] = "json"
+					labelFieldsJson[key] = make([]json.RawMessage, len(times))
+					labelFieldsJson[key] = append(labelFieldsJson[key], json.RawMessage(strValue))
+				} else {
+					labelTypes[key] = "string"
+					labelFieldsString[key] = make([]*string, len(times))
+					labelFieldsString[key] = append(labelFieldsString[key], &strValue)
+				}
+			} else {
+				// Convert value based on established type
+				switch labelTypes[key] {
+				case "int64":
+					if v, err := strconv.ParseInt(strValue, 10, 64); err == nil {
+						labelFieldsInt64[key] = append(labelFieldsInt64[key], &v)
+					} else {
+						v := int64(0)
+						labelFieldsInt64[key] = append(labelFieldsInt64[key], &v)
+					}
+				case "float64":
+					if v, err := strconv.ParseFloat(strValue, 64); err == nil {
+						labelFieldsFloat64[key] = append(labelFieldsFloat64[key], &v)
+					} else {
+						v := float64(0)
+						labelFieldsFloat64[key] = append(labelFieldsFloat64[key], &v)
+					}
+				case "bool":
+					v := strings.EqualFold(strValue, "true")
+					labelFieldsBool[key] = append(labelFieldsBool[key], &v)
+				case "time":
+					if t, err := time.Parse(time.RFC3339, strValue); err == nil {
+						labelFieldsTime[key] = append(labelFieldsTime[key], &t)
+					} else {
+						t := time.Time{}
+						labelFieldsTime[key] = append(labelFieldsTime[key], &t)
+					}
+				case "json":
+					labelFieldsJson[key] = append(labelFieldsJson[key], json.RawMessage(strValue))
+				default:
+					labelFieldsString[key] = append(labelFieldsString[key], &strValue)
+				}
+			}
+		}
+		times = append(times, time.Unix(record.Time(), 0))
+		contentTypes = append(contentTypes, record.ContentType())
 	}
 
+	// determine the max length
+	maxLength := len(times)
+	maxLength = int(math.Max(float64(maxLength), float64(len(contentTypes))))
+
+	// pad only remaining fields with empty values
+	if len(times) < maxLength {
+		previousTime := times[len(times)-1]
+		times = append(times, make([]time.Time, maxLength-len(times))...)
+		for i := len(times) - 1; i >= len(times)-(maxLength-len(times)); i-- {
+			times[i] = previousTime
+			previousTime = previousTime.Add(time.Second)
+		}
+	}
+	if len(contentTypes) < maxLength {
+		previousContentType := contentTypes[len(contentTypes)-1]
+		contentTypes = append(contentTypes, make([]string, maxLength-len(contentTypes))...)
+		for i := len(contentTypes) - 1; i >= len(contentTypes)-(maxLength-len(contentTypes)); i-- {
+			contentTypes[i] = previousContentType
+		}
+	}
+
+	// Create the frame with time and content type
 	frame := data.NewFrame("Entry Data",
-		data.NewField("time", nil, times),
-		data.NewField("labels", nil, labels),
-		data.NewField("sizes", nil, sizes),
-		data.NewField("contentTypes", nil, contentTypes),
+		data.NewField("timestamp", nil, times),
+		data.NewField("content_type", nil, contentTypes),
 	)
+
+	// Add label fields with proper padding
+	for key, fieldType := range labelTypes {
+		switch fieldType {
+		case "int64":
+			values := labelFieldsInt64[key]
+			if len(values) < maxLength {
+				padding := make([]*int64, maxLength-len(values))
+				for i := range padding {
+					v := int64(0)
+					padding[i] = &v
+				}
+				values = append(values, padding...)
+			}
+			frame.Fields = append(frame.Fields, data.NewField(key, nil, values))
+		case "float64":
+			values := labelFieldsFloat64[key]
+			if len(values) < maxLength {
+				padding := make([]*float64, maxLength-len(values))
+				for i := range padding {
+					v := float64(0)
+					padding[i] = &v
+				}
+				values = append(values, padding...)
+			}
+			frame.Fields = append(frame.Fields, data.NewField(key, nil, values))
+		case "bool":
+			values := labelFieldsBool[key]
+			if len(values) < maxLength {
+				padding := make([]*bool, maxLength-len(values))
+				for i := range padding {
+					v := false
+					padding[i] = &v
+				}
+				values = append(values, padding...)
+			}
+			frame.Fields = append(frame.Fields, data.NewField(key, nil, values))
+		case "time":
+			values := labelFieldsTime[key]
+			if len(values) < maxLength {
+				padding := make([]*time.Time, maxLength-len(values))
+				for i := range padding {
+					t := time.Time{}
+					padding[i] = &t
+				}
+				values = append(values, padding...)
+			}
+			frame.Fields = append(frame.Fields, data.NewField(key, nil, values))
+		default:
+			values := labelFieldsString[key]
+			if len(values) < maxLength {
+				padding := make([]*string, maxLength-len(values))
+				for i := range padding {
+					s := ""
+					padding[i] = &s
+				}
+				values = append(values, padding...)
+			}
+			frame.Fields = append(frame.Fields, data.NewField(key, nil, values))
+		}
+	}
 
 	return backend.DataResponse{
 		Frames: []*data.Frame{frame},
