@@ -140,6 +140,12 @@ func (d *ReductDatasource) query(ctx context.Context, pCtx backend.PluginContext
 		log.DefaultLogger.Error("Failed to query", "error", err)
 		return backend.ErrDataResponse(backend.StatusBadRequest, fmt.Sprintf("query: %v", err.Error()))
 	}
+	frames := getFramesV2(records.Records())
+	return backend.DataResponse{
+		Frames: frames,
+	}
+}
+func getFramesV2(records <-chan *reductgo.ReadableRecord) []*data.Frame {
 	frames := []*data.Frame{}
 
 	// Build a time series frame
@@ -147,7 +153,7 @@ func (d *ReductDatasource) query(ctx context.Context, pCtx backend.PluginContext
 	mainFrame.Meta = &data.FrameMeta{
 		Type: data.FrameTypeTimeSeriesMulti,
 	}
-	for record := range records.Records() {
+	for record := range records {
 		for key, value := range record.Labels() {
 			strValue := fmt.Sprintf("%v", value)
 			// Try to determine type from first value
@@ -182,10 +188,53 @@ func (d *ReductDatasource) query(ctx context.Context, pCtx backend.PluginContext
 		mainFrame.Fields = append(mainFrame.Fields, data.NewField("content_type", nil, []string{record.ContentType()}))
 		frames = append(frames, mainFrame)
 	}
+	return frames
+}
 
-	return backend.DataResponse{
-		Frames: frames,
+func getFramesV1(records <-chan *reductgo.ReadableRecord) []*data.Frame {
+	frames := []*data.Frame{}
+
+	// Build a time series frame
+	mainFrame := data.NewFrame("Entry Data")
+	mainFrame.Meta = &data.FrameMeta{
+		Type:                   data.FrameTypeTimeSeriesWide,
+		PreferredVisualization: data.VisTypeGraph,
 	}
+	times := make([]time.Time, 0)
+	contentTypes := make([]string, 0)
+	labelCounts := make(map[string]int8)
+	contentTypesMap := make(map[string]int32)
+	labels := make([]string, 0)
+	values := make([]string, 0)
+	for record := range records {
+		for key, value := range record.Labels() {
+			strValue := fmt.Sprintf("%v", value)
+			// Try to determine type from first value
+			labels = append(labels, key)
+			labelCounts[key]++
+			values = append(values, strValue)
+			contentTypesMap[record.ContentType()]++
+			contentTypes = append(contentTypes, record.ContentType())
+			times = append(times, time.UnixMicro(record.Time()))
+		}
+	}
+
+	mainFrame.Fields = append(mainFrame.Fields, data.NewField("timestamp", nil, times).SetConfig(&data.FieldConfig{
+		Interval: float64(time.Microsecond),
+	}))
+	mainFrame.Fields = append(mainFrame.Fields, data.NewField("content_type", nil, contentTypes))
+	countFields := make([]int32, 0)
+	for _, contentType := range contentTypes {
+		countFields = append(countFields, contentTypesMap[contentType])
+	}
+	mainFrame.Fields = append(mainFrame.Fields, data.NewField("count", nil, countFields))
+
+	mainFrame.Fields = append(mainFrame.Fields, data.NewField("label", nil, labels))
+
+	mainFrame.Fields = append(mainFrame.Fields, data.NewField("value", nil, values))
+	// add count field to main frame
+	frames = append(frames, mainFrame)
+	return frames
 }
 
 // CallResource handles HTTP resource requests from the frontend (e.g. dropdown fetching).
