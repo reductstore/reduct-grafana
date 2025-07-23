@@ -141,8 +141,8 @@ func (d *ReductDatasource) query(ctx context.Context, pCtx backend.PluginContext
 		log.DefaultLogger.Error("Failed to query", "error", err)
 		return backend.ErrDataResponse(backend.StatusBadRequest, fmt.Sprintf("query: %v", err.Error()))
 	}
-	// frames := getFramesV1(10, records.Records())
-	frames := getFramesV2(records.Records())
+	frames := getFramesV1(10, records.Records())
+	// frames := getFramesV2(records.Records())
 	// frames := getFramesV3(10, records.Records())
 	// frames := getFramesV4(10, records.Records())
 	// frames := getFramesV5(10, records.Records())
@@ -540,9 +540,11 @@ func getFramesV2(records <-chan *reductgo.ReadableRecord) []*data.Frame {
 	}
 	times := make(map[time.Time]bool)
 	contentTypes := make(map[string]bool)
+	countLabels := make(map[string]int64)
 	for record := range records {
 		for key, value := range record.Labels() {
 			strValue := fmt.Sprintf("%v", value)
+			countLabels[key]++
 			// Try to determine type from first value
 			labelFrame := data.NewFrame(fmt.Sprintf("Label: %s", key))
 			labelFrame.Meta = &data.FrameMeta{
