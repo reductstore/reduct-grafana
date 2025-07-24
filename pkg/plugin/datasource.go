@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"reflect"
 	"strconv"
 	"time"
 
@@ -149,26 +150,9 @@ func (d *ReductDatasource) query(ctx context.Context, pCtx backend.PluginContext
 func getFrames(records <-chan *reductgo.ReadableRecord) []*data.Frame {
 	// map of frames for each label
 	frames := make(map[string]*data.Frame)
-
+	labelInitialType := make(map[string]prevMemory)
 	for record := range records {
-		// if label is not in the map, create a new frame
-		// TODO: still not perfect, we should handle the case where a label can be 1 and 2.1 and it would be different types.
-		for key, value := range record.Labels() {
-			// Convert value to float64
-			strValue := fmt.Sprintf("%v", value)
-			if v, err := strconv.ParseInt(strValue, 10, 64); err == nil {
-				appendValue(frames, key, record, v)
-			} else if v, err := strconv.ParseFloat(strValue, 64); err == nil {
-				appendValue(frames, key, record, v)
-
-			} else if v, err := strconv.ParseBool(strValue); err == nil {
-				appendValue(frames, key, record, v)
-			} else {
-				// If not a number, treat as string
-				appendValue(frames, key, record, strValue)
-			}
-
-		}
+		processLabels(frames, labelInitialType, record)
 	}
 	// return frames as an array
 	result := make([]*data.Frame, 0, len(frames))
@@ -177,9 +161,70 @@ func getFrames(records <-chan *reductgo.ReadableRecord) []*data.Frame {
 		result = append(result, frame)
 	}
 	return result
-
 }
 
+type prevMemory struct {
+	kind  reflect.Kind
+	value any
+}
+
+func processLabels(frames map[string]*data.Frame, labelInitialType map[string]prevMemory, record *reductgo.ReadableRecord) {
+	for key, value := range record.Labels() {
+		if value == nil {
+			continue
+		}
+
+		strValue := fmt.Sprintf("%v", value)
+		initialType, ok := labelInitialType[key]
+		if !ok {
+			kind := reflect.TypeOf(value).Kind()
+			initialType = prevMemory{kind: kind, value: value}
+			labelInitialType[key] = initialType
+		}
+
+		currentType := reflect.TypeOf(value).Kind()
+		if currentType != initialType.kind {
+			val := coerceToKind(strValue, initialType.kind, initialType.value)
+			switch v := val.(type) {
+			case int64:
+				appendValue(frames, key, record, v)
+			case float64:
+				appendValue(frames, key, record, v)
+			case bool:
+				appendValue(frames, key, record, v)
+			case string:
+				appendValue(frames, key, record, v)
+			default:
+				appendValue(frames, key, record, strValue)
+			}
+			labelInitialType[key] = prevMemory{kind: currentType, value: val}
+		} else {
+			switch initialType.kind {
+			case reflect.Int, reflect.Int64:
+				if v, err := strconv.ParseInt(strValue, 10, 64); err == nil {
+					appendValue(frames, key, record, v)
+					labelInitialType[key] = prevMemory{kind: reflect.Int64, value: v}
+				}
+			case reflect.Float64:
+				if v, err := strconv.ParseFloat(strValue, 64); err == nil {
+					appendValue(frames, key, record, v)
+					labelInitialType[key] = prevMemory{kind: reflect.Float64, value: v}
+				}
+			case reflect.Bool:
+				if v, err := strconv.ParseBool(strValue); err == nil {
+					appendValue(frames, key, record, v)
+					labelInitialType[key] = prevMemory{kind: reflect.Bool, value: v}
+				}
+			case reflect.String:
+				appendValue(frames, key, record, strValue)
+				labelInitialType[key] = prevMemory{kind: reflect.String, value: strValue}
+			default:
+				appendValue(frames, key, record, strValue)
+				labelInitialType[key] = prevMemory{kind: reflect.String, value: strValue}
+			}
+		}
+	}
+}
 func appendValue[V float64 | int64 | bool | string](frames map[string]*data.Frame, key string, record *reductgo.ReadableRecord, val V) {
 	// Check if frame for this label already exists
 	if frame, exists := frames[key]; exists {
@@ -188,7 +233,7 @@ func appendValue[V float64 | int64 | bool | string](frames map[string]*data.Fram
 		frame.Fields[1].Append(val)
 	} else {
 		// Create a new frame for this label
-		frame = data.NewFrame(fmt.Sprintf(key),
+		frame = data.NewFrame(key,
 			data.NewField("time", nil, []time.Time{time.UnixMicro(record.Time())}),
 			data.NewField("value", nil, []V{val}),
 		)
@@ -198,6 +243,31 @@ func appendValue[V float64 | int64 | bool | string](frames map[string]*data.Fram
 		}
 		frames[key] = frame
 	}
+}
+func coerceToKind(str string, kind reflect.Kind, previousValue any) any {
+	switch kind {
+	case reflect.Int, reflect.Int64:
+		if f, err := strconv.ParseFloat(str, 64); err == nil {
+			return int64(f)
+		}
+	case reflect.Float64:
+		if f, err := strconv.ParseFloat(str, 64); err == nil {
+			return f
+		}
+	case reflect.Bool:
+		if b, err := strconv.ParseBool(str); err == nil {
+			return b
+		}
+		if f, err := strconv.ParseFloat(str, 64); err == nil {
+			return f != 0
+		}
+		return false
+	case reflect.String:
+		return str
+	default:
+		return previousValue
+	}
+	return previousValue
 }
 
 // CallResource handles HTTP resource requests from the frontend (e.g. dropdown fetching).
