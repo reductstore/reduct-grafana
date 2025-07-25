@@ -8,8 +8,8 @@ import { DataSource } from '../datasource';
 type Props = QueryEditorProps<DataSource, MyQuery, MyDataSourceOptions>;
 
 export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) {
-  const [buckets, setBuckets] = useState<ComboboxOption<string>[]>([]);
-  const [entries, setEntries] = useState<ComboboxOption<string>[]>([]);
+  const [buckets, setBuckets] = useState<Array<ComboboxOption<string>>>([]);
+  const [entries, setEntries] = useState<Array<ComboboxOption<string>>>([]);
 
   // 1. Fetch bucket list when component mounts
   useEffect(() => {
@@ -26,7 +26,9 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
 
   // 2. Fetch entry list when a bucket is selected
   useEffect(() => {
-    if (!query.bucket) return;
+    if (!query.bucket) {
+        return
+    }
 
     getBackendSrv()
       .post(`/api/datasources/${datasource.id}/resources/listEntries`, { bucket: query.bucket })
@@ -37,7 +39,7 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
         }));
         setEntries(entryOptions);
       });
-  }, [query.bucket]);
+  }, [query.bucket, datasource.id]);
 
   const onBucketChange = (v?: SelectableValue<string>) => {
     onChange({ ...query, bucket: v?.value, entry: undefined }); // reset entry on bucket change
