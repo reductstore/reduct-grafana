@@ -184,6 +184,7 @@ func processLabels(frames map[string]*data.Frame, labelInitialType map[string]pr
 
 		currentType := reflect.TypeOf(value).Kind()
 		if currentType != initialType.kind {
+			// If the type has changed, we need to coerce the value to the initial type
 			val := coerceToKind(strValue, initialType.kind, initialType.value)
 			switch v := val.(type) {
 			case int64:
@@ -199,6 +200,7 @@ func processLabels(frames map[string]*data.Frame, labelInitialType map[string]pr
 			}
 			labelInitialType[key] = prevMemory{kind: currentType, value: val}
 		} else {
+			// If the type is the same, we can parse the value directly
 			switch initialType.kind {
 			case reflect.Int, reflect.Int64:
 				if v, err := strconv.ParseInt(strValue, 10, 64); err == nil {
@@ -225,6 +227,8 @@ func processLabels(frames map[string]*data.Frame, labelInitialType map[string]pr
 		}
 	}
 }
+
+// appendValue appends a value to the frame for the given key.
 func appendValue[V float64 | int64 | bool | string](frames map[string]*data.Frame, key string, record *reductgo.ReadableRecord, val V) {
 	// Check if frame for this label already exists
 	if frame, exists := frames[key]; exists {
@@ -237,13 +241,15 @@ func appendValue[V float64 | int64 | bool | string](frames map[string]*data.Fram
 			data.NewField("time", nil, []time.Time{time.UnixMicro(record.Time())}),
 			data.NewField("value", nil, []V{val}),
 		)
-		// set metadata for the frame
+
 		frame.Meta = &data.FrameMeta{
 			Type: data.FrameTypeTimeSeriesWide,
 		}
 		frames[key] = frame
 	}
 }
+
+// coerceToKind attempts to convert a string value to the specified reflect.Kind type.
 func coerceToKind(str string, kind reflect.Kind, previousValue any) any {
 	switch kind {
 	case reflect.Int, reflect.Int64:
@@ -265,8 +271,10 @@ func coerceToKind(str string, kind reflect.Kind, previousValue any) any {
 	case reflect.String:
 		return str
 	default:
+		// If the type is not recognized, return the previous value
 		return previousValue
 	}
+
 	return previousValue
 }
 
