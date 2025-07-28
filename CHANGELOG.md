@@ -1,7 +1,8 @@
 # Changelog
 
-### Added
-* Added initial configuration setup to connect to ReductStore db [PR-6](https://github.com/reductstore/reduct-grafana/pull/6)
-
 ## 1.0.0 (Unreleased)
-Initial release.
+
+### Added
+
+* Added initial configuration setup to connect to ReductStore [PR-6](https://github.com/reductstore/reduct-grafana/pull/6)
+* Query labels from entries in ReductStore [PR-7](https://github.com/reductstore/reduct-grafana/pull/7)

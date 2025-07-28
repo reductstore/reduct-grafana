@@ -1,11 +1,21 @@
 package plugin
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"reflect"
+	"strconv"
+	"time"
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
 	"github.com/grafana/grafana-plugin-sdk-go/backend/instancemgmt"
+	"github.com/grafana/grafana-plugin-sdk-go/data"
+
+	"github.com/grafana/grafana-plugin-sdk-go/backend/log"
 	reductgo "github.com/reductstore/reduct-go"
 	"github.com/reductstore/reductstore/pkg/models"
 )
@@ -23,14 +33,15 @@ var (
 
 // NewDatasource creates a new datasource instance.
 func NewDatasource(ctx context.Context, settings backend.DataSourceInstanceSettings) (instancemgmt.Instance, error) {
-
 	// Get the URL and API token from JSON config
 	pluginSettings, err := models.LoadPluginSettings(settings)
 	if err != nil {
+		log.DefaultLogger.Error("load plugin settings", "error", err)
 		return nil, fmt.Errorf("load plugin settings: %w", err)
 	}
 	// check both server url and server token are in the plugin settings
 	if pluginSettings.ServerURL == "" {
+		log.DefaultLogger.Error("server URL is missing")
 		return nil, fmt.Errorf("server URL is missing")
 	}
 	client := reductgo.NewClient(pluginSettings.ServerURL, reductgo.ClientOptions{
@@ -39,6 +50,7 @@ func NewDatasource(ctx context.Context, settings backend.DataSourceInstanceSetti
 	})
 	_, err = client.IsLive(ctx)
 	if err != nil {
+		log.DefaultLogger.Error("check health failed", "error", err)
 		return nil, fmt.Errorf("check health failed: %w", err)
 	}
 
@@ -65,11 +77,48 @@ func (d *ReductDatasource) Dispose() {
 func (d *ReductDatasource) QueryData(ctx context.Context, req *backend.QueryDataRequest) (*backend.QueryDataResponse, error) {
 	// create response struct
 	response := backend.NewQueryDataResponse()
+	log.DefaultLogger.Debug("Received QueryData", "queries", req.Queries)
 
 	// loop over queries and execute them individually.
 	for _, q := range req.Queries {
-		res := d.query(ctx, req.PluginContext, q)
+		var qm reductQuery
 
+		err := json.Unmarshal(q.JSON, &qm)
+		if err != nil {
+			log.DefaultLogger.Error("Failed to unmarshal query", "error", err)
+			return &backend.QueryDataResponse{
+				Responses: map[string]backend.DataResponse{
+					q.RefID: backend.ErrDataResponse(backend.StatusBadRequest, "invalid query format"),
+				},
+			}, nil
+		}
+
+		// Validate required fields
+		if qm.Bucket == "" || qm.Entry == "" {
+			return &backend.QueryDataResponse{
+				Responses: map[string]backend.DataResponse{
+					q.RefID: backend.ErrDataResponse(backend.StatusBadRequest, "missing bucket or entry"),
+				},
+			}, nil
+		}
+		from := q.TimeRange.From.UTC()
+		to := q.TimeRange.To.UTC()
+		log.DefaultLogger.Debug("Querying", "entry", qm.Entry, "from", from, "to", to)
+		if from.After(to) {
+			return &backend.QueryDataResponse{
+				Responses: map[string]backend.DataResponse{
+					q.RefID: backend.ErrDataResponse(backend.StatusBadRequest, "from time is after to time"),
+				},
+			}, nil
+		}
+		options := reductgo.NewQueryOptionsBuilder().WithHead(true)
+		if !from.IsZero() {
+			options.WithStart(from.UnixMicro())
+		}
+		if !to.IsZero() {
+			options.WithStop(to.UnixMicro())
+		}
+		res := d.query(ctx, req.PluginContext, qm.Bucket, qm.Entry, options.Build())
 		// save the response in a hashmap
 		// based on with RefID as identifier
 		response.Responses[q.RefID] = res
@@ -78,14 +127,261 @@ func (d *ReductDatasource) QueryData(ctx context.Context, req *backend.QueryData
 	return response, nil
 }
 
-func (d *ReductDatasource) query(_ context.Context, _ backend.PluginContext, _ backend.DataQuery) backend.DataResponse {
-	var response backend.DataResponse
-	// Unmarshal the JSON into our queryModel.
-	// create data frame response.
-	// For an overview on data frames and how grafana handles them:
-	// https://grafana.com/developers/plugin-tools/introduction/data-frames
+func (d *ReductDatasource) query(ctx context.Context, pCtx backend.PluginContext, bucketName string, entry string, options reductgo.QueryOptions) backend.DataResponse {
 
-	return response
+	// Call your SDK
+	bucket, err := d.reductClient.GetBucket(ctx, bucketName)
+	if err != nil {
+		log.DefaultLogger.Error("Failed to get bucket", "error", err)
+		return backend.ErrDataResponse(backend.StatusBadRequest, fmt.Sprintf("get bucket: %v", err.Error()))
+	}
+	records, err := bucket.Query(ctx, entry, &options)
+	if err != nil {
+		log.DefaultLogger.Error("Failed to query", "error", err)
+		return backend.ErrDataResponse(backend.StatusBadRequest, fmt.Sprintf("query: %v", err.Error()))
+	}
+
+	frames := getFrames(records.Records())
+	return backend.DataResponse{
+		Frames: frames,
+	}
+}
+
+func getFrames(records <-chan *reductgo.ReadableRecord) []*data.Frame {
+	// map of frames for each label
+	frames := make(map[string]*data.Frame)
+	labelInitialType := make(map[string]prevMemory)
+	for record := range records {
+		processLabels(frames, labelInitialType, record)
+	}
+	// return frames as an array
+	result := make([]*data.Frame, 0, len(frames))
+	for _, frame := range frames {
+		// Append timestamp field if not already present
+		result = append(result, frame)
+	}
+	return result
+}
+
+type prevMemory struct {
+	kind  reflect.Kind
+	value any
+}
+
+func processLabels(frames map[string]*data.Frame, labelInitialType map[string]prevMemory, record *reductgo.ReadableRecord) {
+	for key, value := range record.Labels() {
+		if value == nil {
+			continue
+		}
+
+		strValue := fmt.Sprintf("%v", value)
+		initialType, ok := labelInitialType[key]
+		if !ok {
+			kind := reflect.TypeOf(value).Kind()
+			initialType = prevMemory{kind: kind, value: value}
+			labelInitialType[key] = initialType
+		}
+
+		currentType := reflect.TypeOf(value).Kind()
+		if currentType != initialType.kind {
+			// If the type has changed, we need to coerce the value to the initial type
+			val := coerceToKind(strValue, initialType.kind, initialType.value)
+			switch v := val.(type) {
+			case int64:
+				appendValue(frames, key, record, v)
+			case float64:
+				appendValue(frames, key, record, v)
+			case bool:
+				appendValue(frames, key, record, v)
+			case string:
+				appendValue(frames, key, record, v)
+			default:
+				appendValue(frames, key, record, strValue)
+			}
+			labelInitialType[key] = prevMemory{kind: currentType, value: val}
+		} else {
+			// If the type is the same, we can parse the value directly
+			switch initialType.kind {
+			case reflect.Int, reflect.Int64:
+				if v, err := strconv.ParseInt(strValue, 10, 64); err == nil {
+					appendValue(frames, key, record, v)
+					labelInitialType[key] = prevMemory{kind: reflect.Int64, value: v}
+				}
+			case reflect.Float64:
+				if v, err := strconv.ParseFloat(strValue, 64); err == nil {
+					appendValue(frames, key, record, v)
+					labelInitialType[key] = prevMemory{kind: reflect.Float64, value: v}
+				}
+			case reflect.Bool:
+				if v, err := strconv.ParseBool(strValue); err == nil {
+					appendValue(frames, key, record, v)
+					labelInitialType[key] = prevMemory{kind: reflect.Bool, value: v}
+				}
+			case reflect.String:
+				appendValue(frames, key, record, strValue)
+				labelInitialType[key] = prevMemory{kind: reflect.String, value: strValue}
+			default:
+				appendValue(frames, key, record, strValue)
+				labelInitialType[key] = prevMemory{kind: reflect.String, value: strValue}
+			}
+		}
+	}
+}
+
+// appendValue appends a value to the frame for the given key.
+func appendValue[V float64 | int64 | bool | string](frames map[string]*data.Frame, key string, record *reductgo.ReadableRecord, val V) {
+	// Check if frame for this label already exists
+	if frame, exists := frames[key]; exists {
+		// Append new value to existing frame
+		frame.Fields[0].Append(time.UnixMicro(record.Time()))
+		frame.Fields[1].Append(val)
+	} else {
+		// Create a new frame for this label
+		frame = data.NewFrame(key,
+			data.NewField("time", nil, []time.Time{time.UnixMicro(record.Time())}),
+			data.NewField("value", nil, []V{val}),
+		)
+
+		frame.Meta = &data.FrameMeta{
+			Type: data.FrameTypeTimeSeriesWide,
+		}
+		frames[key] = frame
+	}
+}
+
+// coerceToKind attempts to convert a string value to the specified reflect.Kind type.
+func coerceToKind(str string, kind reflect.Kind, previousValue any) any {
+	switch kind {
+	case reflect.Int, reflect.Int64:
+		if f, err := strconv.ParseFloat(str, 64); err == nil {
+			return int64(f)
+		}
+	case reflect.Float64:
+		if f, err := strconv.ParseFloat(str, 64); err == nil {
+			return f
+		}
+	case reflect.Bool:
+		if b, err := strconv.ParseBool(str); err == nil {
+			return b
+		}
+		if f, err := strconv.ParseFloat(str, 64); err == nil {
+			return f != 0
+		}
+		return false
+	case reflect.String:
+		return str
+	default:
+		// If the type is not recognized, return the previous value
+		return previousValue
+	}
+
+	return previousValue
+}
+
+// CallResource handles HTTP resource requests from the frontend (e.g. dropdown fetching).
+func (d *ReductDatasource) CallResource(ctx context.Context, req *backend.CallResourceRequest, sender backend.CallResourceResponseSender) error {
+	log.DefaultLogger.Debug("Received CallResource", "Path", req.Path, "Method", req.Method)
+
+	switch req.Path {
+	case "listBuckets":
+		log.DefaultLogger.Debug("Received listBuckets")
+		return d.handleListBuckets(ctx, sender)
+
+	case "listEntries":
+		log.DefaultLogger.Debug("Received listEntries", "bucket", req.Body)
+		return d.handleListEntries(ctx, req, sender)
+
+	default:
+		log.DefaultLogger.Warn("Unknown resource path", "path", req.Path)
+		return sender.Send(&backend.CallResourceResponse{
+			Status: http.StatusNotFound,
+			Body:   fmt.Appendf(nil, "unknown resource path: %s", req.Path),
+		})
+	}
+}
+
+type reductQuery struct {
+	Bucket  string                `json:"bucket"`
+	Entry   string                `json:"entry"`
+	Options reductgo.QueryOptions `json:"options"`
+}
+
+func (d *ReductDatasource) handleListBuckets(ctx context.Context, sender backend.CallResourceResponseSender) error {
+	buckets, err := d.reductClient.GetBuckets(ctx)
+	if err != nil {
+		log.DefaultLogger.Error("Failed to get buckets", "error", err)
+		return sender.Send(&backend.CallResourceResponse{
+			Status: http.StatusInternalServerError,
+			Body:   fmt.Appendf(nil, "error: %v", err),
+		})
+	}
+
+	resp, err := json.Marshal(buckets)
+	if err != nil {
+		return sender.Send(&backend.CallResourceResponse{
+			Status: http.StatusInternalServerError,
+			Body:   []byte("failed to marshal bucket list"),
+		})
+	}
+
+	return sender.Send(&backend.CallResourceResponse{
+		Status: http.StatusOK,
+		Body:   resp,
+	})
+}
+func (d *ReductDatasource) handleListEntries(ctx context.Context, req *backend.CallResourceRequest, sender backend.CallResourceResponseSender) error {
+	var payload struct {
+		Bucket string `json:"bucket"`
+	}
+
+	body, err := io.ReadAll(bytes.NewReader(req.Body))
+	if err != nil {
+		log.DefaultLogger.Error("Failed to read request body", "error", err)
+		return sender.Send(&backend.CallResourceResponse{
+			Status: http.StatusBadRequest,
+			Body:   []byte("invalid request body"),
+		})
+	}
+
+	err = json.Unmarshal(body, &payload)
+	if err != nil || payload.Bucket == "" {
+		log.DefaultLogger.Warn("Missing or invalid bucket in request")
+		return sender.Send(&backend.CallResourceResponse{
+			Status: http.StatusBadRequest,
+			Body:   []byte("missing or invalid 'bucket' in request"),
+		})
+	}
+
+	bucket, err := d.reductClient.GetBucket(ctx, payload.Bucket)
+	if err != nil {
+		log.DefaultLogger.Error("Failed to get bucket", "bucket", payload.Bucket, "error", err)
+		return sender.Send(&backend.CallResourceResponse{
+			Status: http.StatusInternalServerError,
+			Body:   fmt.Appendf(nil, "error getting bucket: %v", err),
+		})
+	}
+
+	entries, err := bucket.GetEntries(ctx)
+	if err != nil {
+		log.DefaultLogger.Error("Failed to list entries", "error", err)
+		return sender.Send(&backend.CallResourceResponse{
+			Status: http.StatusInternalServerError,
+			Body:   []byte("error getting entries"),
+		})
+	}
+
+	resp, err := json.Marshal(entries)
+	if err != nil {
+		return sender.Send(&backend.CallResourceResponse{
+			Status: http.StatusInternalServerError,
+			Body:   []byte("failed to marshal entries"),
+		})
+	}
+
+	return sender.Send(&backend.CallResourceResponse{
+		Status: http.StatusOK,
+		Body:   resp,
+	})
 }
 
 // CheckHealth handles health checks sent from Grafana to the plugin.
@@ -94,7 +390,7 @@ func (d *ReductDatasource) query(_ context.Context, _ backend.PluginContext, _ b
 // a datasource is working as expected.
 func (d *ReductDatasource) CheckHealth(ctx context.Context, req *backend.CheckHealthRequest) (*backend.CheckHealthResult, error) {
 	res := &backend.CheckHealthResult{}
-
+	// url is not in secured json data, its in json data
 	pluginSettings, err := models.LoadPluginSettings(*req.PluginContext.DataSourceInstanceSettings)
 	if err != nil {
 		res.Status = backend.HealthStatusError

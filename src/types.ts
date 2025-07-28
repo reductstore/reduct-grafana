@@ -2,7 +2,6 @@ import { DataSourceJsonData } from '@grafana/data';
 import { DataQuery } from '@grafana/schema';
 
 export interface MyQuery extends DataQuery {
-  queryType: 'listBuckets' | 'getBucketEntries' | 'getBucketSetting' | 'getInfo' | 'listTokens' | 'getReplicationTasks' | 'queryRecords';
   bucket?: string;
   entry?: string;
   options?: QueryOptions;
@@ -17,9 +16,6 @@ export interface QueryOptions {
   continuous?: boolean;
 }
 
-export const DEFAULT_QUERY: Partial<MyQuery> = {
-  queryType: 'listBuckets',
-};
 
 /**
  * These are options configured for each DataSource instance
