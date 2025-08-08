@@ -128,8 +128,6 @@ func (d *ReductDatasource) QueryData(ctx context.Context, req *backend.QueryData
 }
 
 func (d *ReductDatasource) query(ctx context.Context, pCtx backend.PluginContext, bucketName string, entry string, options reductgo.QueryOptions) backend.DataResponse {
-
-	// Call your SDK
 	bucket, err := d.reductClient.GetBucket(ctx, bucketName)
 	if err != nil {
 		log.DefaultLogger.Error("Failed to get bucket", "error", err)
@@ -150,80 +148,57 @@ func (d *ReductDatasource) query(ctx context.Context, pCtx backend.PluginContext
 func getFrames(records <-chan *reductgo.ReadableRecord) []*data.Frame {
 	// map of frames for each label
 	frames := make(map[string]*data.Frame)
-	labelInitialType := make(map[string]prevMemory)
+	labelInitialType := make(map[string]reflect.Kind)
 	for record := range records {
 		processLabels(frames, labelInitialType, record)
 	}
+
 	// return frames as an array
 	result := make([]*data.Frame, 0, len(frames))
 	for _, frame := range frames {
 		// Append timestamp field if not already present
+		log.DefaultLogger.Debug("Processing frame", "name", frame.Name, "fields", len(frame.Fields), "meta", frame.Meta, "type", frame.Meta.Type, "data_type", frame.Fields[1].Type())
 		result = append(result, frame)
 	}
 	return result
 }
 
-type prevMemory struct {
-	kind  reflect.Kind
-	value any
-}
+func processLabels(frames map[string]*data.Frame, labelInitialType map[string]reflect.Kind, record *reductgo.ReadableRecord) {
+	for key, labelValue := range record.Labels() {
 
-func processLabels(frames map[string]*data.Frame, labelInitialType map[string]prevMemory, record *reductgo.ReadableRecord) {
-	for key, value := range record.Labels() {
-		if value == nil {
-			continue
-		}
-
-		strValue := fmt.Sprintf("%v", value)
+		strValue := fmt.Sprintf("%v", labelValue)
 		initialType, ok := labelInitialType[key]
+		value := parseValue(strValue)
+
 		if !ok {
 			kind := reflect.TypeOf(value).Kind()
-			initialType = prevMemory{kind: kind, value: value}
-			labelInitialType[key] = initialType
+			labelInitialType[key] = kind
+			initialType = kind
 		}
 
 		currentType := reflect.TypeOf(value).Kind()
-		if currentType != initialType.kind {
+		if currentType != initialType {
 			// If the type has changed, we need to coerce the value to the initial type
-			val := coerceToKind(strValue, initialType.kind, initialType.value)
-			switch v := val.(type) {
-			case int64:
-				appendValue(frames, key, record, v)
-			case float64:
-				appendValue(frames, key, record, v)
-			case bool:
-				appendValue(frames, key, record, v)
-			case string:
-				appendValue(frames, key, record, v)
-			default:
-				appendValue(frames, key, record, strValue)
+			log.DefaultLogger.Debug("Type change detected", "key", key, "from", initialType, "to", currentType)
+			val, err := coerceToKind(strValue, initialType)
+			if err != nil {
+				log.DefaultLogger.Error("Failed to coerce value", "key", key, "value", strValue, "error", err)
+				continue
 			}
-			labelInitialType[key] = prevMemory{kind: currentType, value: val}
-		} else {
-			// If the type is the same, we can parse the value directly
-			switch initialType.kind {
-			case reflect.Int, reflect.Int64:
-				if v, err := strconv.ParseInt(strValue, 10, 64); err == nil {
-					appendValue(frames, key, record, v)
-					labelInitialType[key] = prevMemory{kind: reflect.Int64, value: v}
-				}
-			case reflect.Float64:
-				if v, err := strconv.ParseFloat(strValue, 64); err == nil {
-					appendValue(frames, key, record, v)
-					labelInitialType[key] = prevMemory{kind: reflect.Float64, value: v}
-				}
-			case reflect.Bool:
-				if v, err := strconv.ParseBool(strValue); err == nil {
-					appendValue(frames, key, record, v)
-					labelInitialType[key] = prevMemory{kind: reflect.Bool, value: v}
-				}
-			case reflect.String:
-				appendValue(frames, key, record, strValue)
-				labelInitialType[key] = prevMemory{kind: reflect.String, value: strValue}
-			default:
-				appendValue(frames, key, record, strValue)
-				labelInitialType[key] = prevMemory{kind: reflect.String, value: strValue}
-			}
+			value = val
+		}
+
+		switch v := value.(type) {
+		case int64:
+			appendValue(frames, key, record, v)
+		case float64:
+			appendValue(frames, key, record, v)
+		case bool:
+			appendValue(frames, key, record, v)
+		case string:
+			appendValue(frames, key, record, v)
+		default:
+			appendValue(frames, key, record, strValue)
 		}
 	}
 }
@@ -250,32 +225,48 @@ func appendValue[V float64 | int64 | bool | string](frames map[string]*data.Fram
 }
 
 // coerceToKind attempts to convert a string value to the specified reflect.Kind type.
-func coerceToKind(str string, kind reflect.Kind, previousValue any) any {
+func coerceToKind(str string, kind reflect.Kind) (any, error) {
 	switch kind {
 	case reflect.Int, reflect.Int64:
 		if f, err := strconv.ParseFloat(str, 64); err == nil {
-			return int64(f)
+			return int64(f), nil
 		}
 	case reflect.Float64:
 		if f, err := strconv.ParseFloat(str, 64); err == nil {
-			return f
+			return f, nil
 		}
 	case reflect.Bool:
 		if b, err := strconv.ParseBool(str); err == nil {
-			return b
+			return b, nil
 		}
 		if f, err := strconv.ParseFloat(str, 64); err == nil {
-			return f != 0
+			return f != 0, nil
 		}
-		return false
+		return false, fmt.Errorf("invalid boolean value")
 	case reflect.String:
-		return str
+		return str, nil
 	default:
-		// If the type is not recognized, return the previous value
-		return previousValue
+		return str, fmt.Errorf("unsupported kind: %s", kind)
 	}
 
-	return previousValue
+	return str, fmt.Errorf("coerceToKind: failed to coerce value '%s' to kind '%s'", str, kind)
+}
+
+// parseValue parses a string value into the appropriate type based on the kind.
+func parseValue(str string) any {
+	if v, err := strconv.ParseInt(str, 10, 64); err == nil {
+		return v
+	}
+
+	if v, err := strconv.ParseFloat(str, 64); err == nil {
+		return v
+	}
+
+	if v, err := strconv.ParseBool(str); err == nil {
+		return v
+	}
+
+	return str // Default to string if no other type matches
 }
 
 // CallResource handles HTTP resource requests from the frontend (e.g. dropdown fetching).
