@@ -157,7 +157,6 @@ func getFrames(records <-chan *reductgo.ReadableRecord) []*data.Frame {
 	result := make([]*data.Frame, 0, len(frames))
 	for _, frame := range frames {
 		// Append timestamp field if not already present
-		log.DefaultLogger.Debug("Processing frame", "name", frame.Name, "fields", len(frame.Fields), "meta", frame.Meta, "type", frame.Meta.Type, "data_type", frame.Fields[1].Type())
 		result = append(result, frame)
 	}
 	return result
