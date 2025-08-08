@@ -53,7 +53,7 @@ func TestProcessLabels(t *testing.T) {
 	floatFrame := frames["floatLabel"]
 	assert.Equal(t, 2, len(floatFrame.Fields))
 	assert.Equal(t, data.FieldTypeFloat64, floatFrame.Fields[1].Type())
-	assert.Equal(t, data.NewField("value", nil, []float64{3.14, 6.}), floatFrame.Fields[1])
+	assert.Equal(t, data.NewField("value", nil, []float64{3.14, 6.0}), floatFrame.Fields[1])
 
 	// Test boolLabel frame
 	boolFrame := frames["boolLabel"]
