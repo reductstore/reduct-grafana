@@ -1,11 +1,12 @@
 import React, {useEffect, useState} from 'react';
-import {Combobox, ComboboxOption, InlineField, InlineFieldRow} from '@grafana/ui';
+import {Alert, Combobox, ComboboxOption, InlineField, InlineFieldRow, useTheme2} from '@grafana/ui';
 import {getBackendSrv} from '@grafana/runtime';
 import {QueryEditorProps, SelectableValue} from '@grafana/data';
-import {ReductSourceOptions, ReductQuery} from '../types';
+import {ReductQuery, ReductSourceOptions} from '../types';
 import {DataSource} from '../datasource';
-import { Controlled as CodeMirror } from "react-codemirror2";
+import {Controlled as CodeMirror} from "react-codemirror2"
 import "codemirror/lib/codemirror.css";
+import "codemirror/theme/dracula.css";
 import "codemirror/mode/javascript/javascript";
 
 type Props = QueryEditorProps<DataSource, ReductQuery, ReductSourceOptions>;
@@ -14,7 +15,9 @@ export function QueryEditor({query, onChange, onRunQuery, datasource}: Props) {
     const [buckets, setBuckets] = useState<Array<ComboboxOption<string>>>([]);
     const [entries, setEntries] = useState<Array<ComboboxOption<string>>>([]);
     const [when, setWhen] = useState<string>("{}");
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+    const theme = useTheme2()
     // 1. Fetch bucket list when component mounts
     useEffect(() => {
         getBackendSrv()
@@ -50,12 +53,16 @@ export function QueryEditor({query, onChange, onRunQuery, datasource}: Props) {
     };
 
     const onEntryChange = (v?: SelectableValue<string>) => {
+        console.log("onEntryChange", v);
         onChange({...query, entry: v?.value});
-        onRunQuery(); // run immediately when entry changes
+        onRunQuery();
     };
 
     return (
         <>
+            {errorMessage &&
+                <Alert title="Error: ">{errorMessage}</Alert>}
+
             <InlineFieldRow>
                 <InlineField label="Bucket" grow>
                     <Combobox placeholder="Select bucket" options={buckets} value={query.bucket}
@@ -70,31 +77,37 @@ export function QueryEditor({query, onChange, onRunQuery, datasource}: Props) {
                 )}
             </InlineFieldRow>
 
-            { query.entry && (
+            {query.entry && (
                 <InlineField label="When" grow>
                     <CodeMirror
                         className="jsonEditor"
                         value={when}
                         options={{
-                            mode: { name: "javascript", json: true },
-                            theme: "default",
+                            mode: {name: "javascript", json: true},
+                            theme: theme.isDark ? "dracula" : "default",
                             lineNumbers: true,
                             lineWrapping: true,
                             viewportMargin: Infinity,
                             matchBrackets: true,
                             autoCloseBrackets: true,
-                            readOnly: false
+                            readOnly: false,
                         }}
                         onBeforeChange={(editor: any, data: any, value: string) => {
                             setWhen(value);
                         }}
                         onBlur={(editor: any) => {
-                            const newState = {...query, when: JSON.parse(editor.getValue())};
-                            console.log(newState);
-                            onChange(newState); // Update query with new 'when' value
-                        }}
-                    />
+                            try {
+                                const newState = {...query, when: JSON.parse(editor.getValue())};
+                                onChange(newState); // Update query with new 'when' value
+                                setErrorMessage(null);
+                                onRunQuery();
+                            } catch (e) {
+                                // @ts-ignore
+                                setErrorMessage(e.toString());
+                            }
+                        }}/>
                 </InlineField>
+
             )}
 
         </>
