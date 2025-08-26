@@ -61,7 +61,7 @@ jobs:
 
       - name: Run reductstore codegen
         if: steps.check-for-backend.outputs.has-backend == 'true'
-        run: docker compose up reductstore
+        run: docker compose up reductstore -d
 
       - name: Test backend
         if: steps.check-for-backend.outputs.has-backend == 'true'
