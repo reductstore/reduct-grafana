@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,10 +15,11 @@ import (
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
 	"github.com/grafana/grafana-plugin-sdk-go/backend/instancemgmt"
 	"github.com/grafana/grafana-plugin-sdk-go/data"
+	"github.com/reductstore/reductstore/pkg/models"
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend/log"
 	reductgo "github.com/reductstore/reduct-go"
-	"github.com/reductstore/reductstore/pkg/models"
+	model "github.com/reductstore/reduct-go/model"
 )
 
 // Make sure Datasource implements required interfaces. This is important to do
@@ -132,12 +134,16 @@ func (d *ReductDatasource) query(ctx context.Context, pCtx backend.PluginContext
 	bucket, err := d.reductClient.GetBucket(ctx, bucketName)
 	if err != nil {
 		log.DefaultLogger.Error("Failed to get bucket", "error", err)
-		return backend.ErrDataResponse(backend.StatusBadRequest, fmt.Sprintf("get bucket: %v", err.Error()))
+		var apiErr model.APIError
+		errors.As(err, &apiErr)
+		return backend.ErrDataResponse(backend.Status(apiErr.Status), apiErr.Message)
 	}
 	records, err := bucket.Query(ctx, entry, &options)
 	if err != nil {
 		log.DefaultLogger.Error("Failed to query", "error", err)
-		return backend.ErrDataResponse(backend.StatusBadRequest, fmt.Sprintf("query: %v", err.Error()))
+		var apiErr model.APIError
+		errors.As(err, &apiErr)
+		return backend.ErrDataResponse(backend.Status(apiErr.Status), apiErr.Message)
 	}
 
 	frames := getFrames(records.Records())
