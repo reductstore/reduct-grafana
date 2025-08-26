@@ -16,7 +16,7 @@ import (
 func getServerUrl() string {
 	url := os.Getenv("REDUCT_URL")
 	if url == "" {
-		url = "http://reductstore:8383"
+		url = "http://127.0.0.1:8383"
 	}
 	return url
 }
