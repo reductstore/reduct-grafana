@@ -59,6 +59,10 @@ jobs:
         with:
           go-version: '1.22'
 
+      - name: Run reductstore codegen
+        if: steps.check-for-backend.outputs.has-backend == 'true'
+        run: docker compose up reductstore -d
+
       - name: Test backend
         if: steps.check-for-backend.outputs.has-backend == 'true'
         uses: magefile/mage-action@6f50bbb8ea47d56e62dee92392788acbc8192d0b # v3.1.0
@@ -72,6 +76,10 @@ jobs:
         with:
           version: latest
           args: buildAll
+
+      - name: Stop reductstore
+        if: steps.check-for-backend.outputs.has-backend == 'true'
+        run: docker compose down
 
       - name: Check for E2E
         id: check-for-e2e

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,10 +15,11 @@ import (
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
 	"github.com/grafana/grafana-plugin-sdk-go/backend/instancemgmt"
 	"github.com/grafana/grafana-plugin-sdk-go/data"
+	"github.com/reductstore/reductstore/pkg/models"
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend/log"
 	reductgo "github.com/reductstore/reduct-go"
-	"github.com/reductstore/reductstore/pkg/models"
+	model "github.com/reductstore/reduct-go/model"
 )
 
 // Make sure Datasource implements required interfaces. This is important to do
@@ -103,7 +105,7 @@ func (d *ReductDatasource) QueryData(ctx context.Context, req *backend.QueryData
 		}
 		from := q.TimeRange.From.UTC()
 		to := q.TimeRange.To.UTC()
-		log.DefaultLogger.Debug("Querying", "entry", qm.Entry, "from", from, "to", to)
+		log.DefaultLogger.Debug("Querying", "entry", qm.Entry, "from", from, "to", to, "when", qm.When)
 		if from.After(to) {
 			return &backend.QueryDataResponse{
 				Responses: map[string]backend.DataResponse{
@@ -111,7 +113,8 @@ func (d *ReductDatasource) QueryData(ctx context.Context, req *backend.QueryData
 				},
 			}, nil
 		}
-		options := reductgo.NewQueryOptionsBuilder().WithHead(true)
+
+		options := reductgo.NewQueryOptionsBuilder().WithHead(true).WithWhen(qm.When)
 		if !from.IsZero() {
 			options.WithStart(from.UnixMicro())
 		}
@@ -131,12 +134,16 @@ func (d *ReductDatasource) query(ctx context.Context, pCtx backend.PluginContext
 	bucket, err := d.reductClient.GetBucket(ctx, bucketName)
 	if err != nil {
 		log.DefaultLogger.Error("Failed to get bucket", "error", err)
-		return backend.ErrDataResponse(backend.StatusBadRequest, fmt.Sprintf("get bucket: %v", err.Error()))
+		var apiErr model.APIError
+		errors.As(err, &apiErr)
+		return backend.ErrDataResponse(backend.Status(apiErr.Status), apiErr.Message)
 	}
 	records, err := bucket.Query(ctx, entry, &options)
 	if err != nil {
 		log.DefaultLogger.Error("Failed to query", "error", err)
-		return backend.ErrDataResponse(backend.StatusBadRequest, fmt.Sprintf("query: %v", err.Error()))
+		var apiErr model.APIError
+		errors.As(err, &apiErr)
+		return backend.ErrDataResponse(backend.Status(apiErr.Status), apiErr.Message)
 	}
 
 	frames := getFrames(records.Records())
@@ -291,9 +298,9 @@ func (d *ReductDatasource) CallResource(ctx context.Context, req *backend.CallRe
 }
 
 type reductQuery struct {
-	Bucket  string                `json:"bucket"`
-	Entry   string                `json:"entry"`
-	Options reductgo.QueryOptions `json:"options"`
+	Bucket string `json:"bucket"`
+	Entry  string `json:"entry"`
+	When   any    `json:"when,omitempty"`
 }
 
 func (d *ReductDatasource) handleListBuckets(ctx context.Context, sender backend.CallResourceResponseSender) error {

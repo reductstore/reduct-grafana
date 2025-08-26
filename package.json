@@ -1,6 +1,6 @@
 {
   "name": "reductstore",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "scripts": {
     "build": "webpack -c ./.config/webpack/webpack.config.ts --env production",
     "dev": "webpack -w -c ./.config/webpack/webpack.config.ts --env development",
@@ -72,7 +72,9 @@
     "@grafana/schema": "^12.0.1",
     "@grafana/ui": "^12.0.1",
     "react": "18.2.0",
-    "react-dom": "18.2.0"
+    "react-dom": "18.2.0",
+    "react-codemirror2": "^8.0.1",
+    "codemirror": "^5.65.20"
   },
   "packageManager": "npm@10.9.2"
 }

@@ -1,15 +1,18 @@
 {
   "$schema": "https://raw.githubusercontent.com/grafana/grafana/main/docs/sources/developers/plugins/plugin.schema.json",
   "type": "datasource",
-  "name": "ReductStore",
+  "name": "ReductStore Datasource",
   "id": "reductstore-datasource",
   "metrics": true,
   "backend": true,
+  "alerting": true,
   "executable": "gpx_reductstore",
   "info": {
     "description": "",
     "author": {
-      "name": "Reductstore"
+      "name": "ReductSoftware UG",
+        "url": "https://www.reduct.store",
+        "email": "support@reduct.store"
     },
     "keywords": ["datasource"],
     "logos": {
