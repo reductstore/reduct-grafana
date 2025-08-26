@@ -102,8 +102,7 @@ export function QueryEditor({query, onChange, onRunQuery, datasource}: Props) {
                                 setErrorMessage(null);
                                 onRunQuery();
                             } catch (e) {
-                                // @ts-ignore
-                                setErrorMessage(e.toString());
+                                setErrorMessage(e instanceof Error ? e.message : String(e));
                             }
                         }}/>
                 </InlineField>
