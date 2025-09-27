@@ -131,7 +131,10 @@ func TestQueryDataWithThen(t *testing.T) {
 	resp, teardown := runQuery(t, `{
 						"Bucket": "test-bucket",
 						"Entry": "entity1",
-						"When": { "#select_labels": ["int-label"]}
+						"Options": {
+							"When": { "#select_labels": ["int-label"]},
+							"Mode": "labels"
+						}
 					}`)
 	defer teardown(t)
 

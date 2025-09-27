@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
@@ -106,15 +107,15 @@ func (d *ReductDatasource) QueryData(ctx context.Context, req *backend.QueryData
 		from := q.TimeRange.From.UTC()
 		to := q.TimeRange.To.UTC()
 
-		when := qm.When
-		parseContent := qm.ParseContent
+		when := qm.Options.When
+		mode := qm.Options.Mode
 
 		log.DefaultLogger.Debug(
 			"Querying",
 			"entry", qm.Entry,
 			"from", from, "to", to,
 			"when", when,
-			"parseContent", parseContent,
+			"mode", mode,
 		)
 		if from.After(to) {
 			return &backend.QueryDataResponse{
@@ -125,10 +126,10 @@ func (d *ReductDatasource) QueryData(ctx context.Context, req *backend.QueryData
 		}
 	
 		options := reductgo.NewQueryOptionsBuilder().WithWhen(when)
-		if parseContent {
-			options.WithHead(false)
-		} else {
+		if mode == ModeLabels {
 			options.WithHead(true)
+		} else {
+			options.WithHead(false)
 		}
 
 		if !from.IsZero() {
@@ -137,7 +138,7 @@ func (d *ReductDatasource) QueryData(ctx context.Context, req *backend.QueryData
 		if !to.IsZero() {
 			options.WithStop(to.UnixMicro())
 		}
-		res := d.query(ctx, req.PluginContext, qm.Bucket, qm.Entry, options.Build())
+		res := d.query(ctx, req.PluginContext, qm.Bucket, qm.Entry, options.Build(), mode)
 		// save the response in a hashmap
 		// based on with RefID as identifier
 		response.Responses[q.RefID] = res
@@ -146,7 +147,7 @@ func (d *ReductDatasource) QueryData(ctx context.Context, req *backend.QueryData
 	return response, nil
 }
 
-func (d *ReductDatasource) query(ctx context.Context, pCtx backend.PluginContext, bucketName string, entry string, options reductgo.QueryOptions) backend.DataResponse {
+func (d *ReductDatasource) query(ctx context.Context, pCtx backend.PluginContext, bucketName string, entry string, options reductgo.QueryOptions, mode ReductMode) backend.DataResponse {
 	bucket, err := d.reductClient.GetBucket(ctx, bucketName)
 	if err != nil {
 		log.DefaultLogger.Error("Failed to get bucket", "error", err)
@@ -162,18 +163,24 @@ func (d *ReductDatasource) query(ctx context.Context, pCtx backend.PluginContext
 		return backend.ErrDataResponse(backend.Status(apiErr.Status), apiErr.Message)
 	}
 
-	frames := getFrames(records.Records())
+	frames := getFrames(records.Records(), mode)
 	return backend.DataResponse{
 		Frames: frames,
 	}
 }
 
-func getFrames(records <-chan *reductgo.ReadableRecord) []*data.Frame {
+func getFrames(records <-chan *reductgo.ReadableRecord, mode ReductMode) []*data.Frame {
 	// map of frames for each label
 	frames := make(map[string]*data.Frame)
-	labelInitialType := make(map[string]reflect.Kind)
+	kinds  := make(map[string]reflect.Kind)
+
 	for record := range records {
-		processLabels(frames, labelInitialType, record)
+		if mode == ModeLabels || mode == ModeBoth {
+			processLabels(frames, kinds, record)
+		}
+		if mode == ModeContent || mode == ModeBoth {
+			processContent(frames, kinds, record)
+		}
 	}
 
 	// return frames as an array
@@ -185,6 +192,7 @@ func getFrames(records <-chan *reductgo.ReadableRecord) []*data.Frame {
 	return result
 }
 
+// processContent processes the content of a record and appends it to the frames.
 func processLabels(frames map[string]*data.Frame, labelInitialType map[string]reflect.Kind, record *reductgo.ReadableRecord) {
 	for key, labelValue := range record.Labels() {
 
@@ -223,6 +231,87 @@ func processLabels(frames map[string]*data.Frame, labelInitialType map[string]re
 			appendValue(frames, key, record, strValue)
 		}
 	}
+}
+
+// processContent reads record body, tries to parse JSON, flattens it, and appends values as frames.
+func processContent(
+  frames map[string]*data.Frame,
+  initial map[string]reflect.Kind,
+  record *reductgo.ReadableRecord,
+) {
+  s, err := record.ReadAsString()
+  if err != nil || len(strings.TrimSpace(s)) == 0 {
+    return
+  }
+
+  // quick JSON sniff
+  b := []byte(s)
+  if !looksLikeJSON(b) {
+    return
+  }
+
+  var v any
+  if err := json.Unmarshal(b, &v); err != nil {
+    return
+  }
+
+  flat := map[string]any{}
+  flattenJSON("$", v, flat)
+
+  for k, raw := range flat {
+    str := fmt.Sprintf("%v", raw)
+    kind, ok := initial[k]
+    val := parseValue(str)
+
+    if !ok {
+      kind = reflect.TypeOf(val).Kind()
+      initial[k] = kind
+    } else if reflect.TypeOf(val).Kind() != kind {
+      if coerced, err := coerceToKind(str, kind); err == nil {
+        val = coerced
+      } else {
+        val = str
+      }
+    }
+
+    switch vv := val.(type) {
+    case int64:
+      appendValue(frames, k, record, vv)
+    case float64:
+      appendValue(frames, k, record, vv)
+    case bool:
+      appendValue(frames, k, record, vv)
+    case string:
+      appendValue(frames, k, record, vv)
+    default:
+      appendValue(frames, k, record, str)
+    }
+  }
+}
+
+func looksLikeJSON(b []byte) bool {
+  for _, c := range b {
+    if c == ' ' || c == '\n' || c == '\t' || c == '\r' {
+      continue
+    }
+    return c == '{' || c == '['
+  }
+  return false
+}
+
+func flattenJSON(prefix string, v any, out map[string]any) {
+  switch t := v.(type) {
+  case map[string]any:
+    for k, vv := range t {
+      flattenJSON(prefix+"."+k, vv, out)
+    }
+  case []any:
+    for i, vv := range t {
+      flattenJSON(fmt.Sprintf("%s[%d]", prefix, i), vv, out)
+    }
+  default:
+    out[prefix] = v
+  }
 }
 
 // appendValue appends a value to the frame for the given key.
@@ -313,11 +402,28 @@ func (d *ReductDatasource) CallResource(ctx context.Context, req *backend.CallRe
 	}
 }
 
+type ReductMode string
+
+const (
+  ModeLabels  ReductMode = "labels"
+  ModeContent ReductMode = "content"
+  ModeBoth    ReductMode = "both"
+)
+
+type reductOptions struct {
+	Start        int64       `json:"start,omitempty"`
+	Stop         int64       `json:"stop,omitempty"`
+	When         any         `json:"when,omitempty"`
+	Strict       bool        `json:"strict,omitempty"`
+	Continuous   bool        `json:"continuous,omitempty"`
+	Ext          any         `json:"ext,omitempty"`
+	Mode         ReductMode  `json:"mode,omitempty"`
+}
+
 type reductQuery struct {
 	Bucket string `json:"bucket"`
 	Entry  string `json:"entry"`
-	When   any    `json:"when,omitempty"`
-	ParseContent bool   `json:"parseContent,omitempty"`
+	Options reductOptions  `json:"options"`
 }
 
 func (d *ReductDatasource) handleListBuckets(ctx context.Context, sender backend.CallResourceResponseSender) error {
