@@ -1,5 +1,5 @@
 import React, {useEffect, useState} from 'react';
-import {Alert, Combobox, ComboboxOption, InlineField, InlineFieldRow, useTheme2} from '@grafana/ui';
+import {Alert, Combobox, ComboboxOption, InlineField, InlineFieldRow, InlineSwitch, useTheme2} from '@grafana/ui';
 import {getBackendSrv} from '@grafana/runtime';
 import {QueryEditorProps, SelectableValue} from '@grafana/data';
 import {ReductQuery, ReductSourceOptions} from '../types';
@@ -15,6 +15,7 @@ export function QueryEditor({query, onChange, onRunQuery, datasource}: Props) {
     const [buckets, setBuckets] = useState<Array<ComboboxOption<string>>>([]);
     const [entries, setEntries] = useState<Array<ComboboxOption<string>>>([]);
     const [when, setWhen] = useState<string>("{}");
+    const [parseContent, setParseContent] = useState<boolean>(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     const theme = useTheme2()
@@ -53,7 +54,6 @@ export function QueryEditor({query, onChange, onRunQuery, datasource}: Props) {
     };
 
     const onEntryChange = (v?: SelectableValue<string>) => {
-        console.log("onEntryChange", v);
         onChange({...query, entry: v?.value});
         onRunQuery();
     };
@@ -78,35 +78,51 @@ export function QueryEditor({query, onChange, onRunQuery, datasource}: Props) {
             </InlineFieldRow>
 
             {query.entry && (
-                <InlineField label="When" grow>
-                    <CodeMirror
-                        className="jsonEditor"
-                        value={when}
-                        options={{
-                            mode: {name: "javascript", json: true},
-                            theme: theme.isDark ? "dracula" : "default",
-                            lineNumbers: true,
-                            lineWrapping: true,
-                            viewportMargin: Infinity,
-                            matchBrackets: true,
-                            autoCloseBrackets: true,
-                            readOnly: false,
-                        }}
-                        onBeforeChange={(editor: any, data: any, value: string) => {
-                            setWhen(value);
-                        }}
-                        onBlur={(editor: any) => {
-                            try {
-                                const newState = {...query, when: JSON.parse(editor.getValue())};
-                                onChange(newState); // Update query with new 'when' value
-                                setErrorMessage(null);
+                <>
+                    <InlineField
+                        label="Parse content"
+                        tooltip="If enabled, the backend parses JSON bodies and exposes fields as series"
+                    >
+                        <InlineSwitch
+                            value={parseContent}
+                            onChange={(e) => {
+                                const newState = {...query, parseContent: e.currentTarget.checked};
+                                onChange(newState);
                                 onRunQuery();
-                            } catch (e) {
-                                setErrorMessage(e instanceof Error ? e.message : String(e));
-                            }
-                        }}/>
-                </InlineField>
+                                setParseContent(e.currentTarget.checked);
+                            }}
+                        />
+                    </InlineField>
 
+                    <InlineField label="When" grow>
+                        <CodeMirror
+                            className="jsonEditor"
+                            value={when}
+                            options={{
+                                mode: {name: "javascript", json: true},
+                                theme: theme.isDark ? "dracula" : "default",
+                                lineNumbers: true,
+                                lineWrapping: true,
+                                viewportMargin: Infinity,
+                                matchBrackets: true,
+                                autoCloseBrackets: true,
+                                readOnly: false,
+                            }}
+                            onBeforeChange={(editor: any, data: any, value: string) => {
+                                setWhen(value);
+                            }}
+                            onBlur={(editor: any) => {
+                                try {
+                                    const newState = {...query, when: JSON.parse(editor.getValue())};
+                                    onChange(newState); // Update query with new 'when' value
+                                    setErrorMessage(null);
+                                    onRunQuery();
+                                } catch (e) {
+                                    setErrorMessage(e instanceof Error ? e.message : String(e));
+                                }
+                            }}/>
+                    </InlineField>
+                </>
             )}
 
         </>

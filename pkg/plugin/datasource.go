@@ -105,7 +105,17 @@ func (d *ReductDatasource) QueryData(ctx context.Context, req *backend.QueryData
 		}
 		from := q.TimeRange.From.UTC()
 		to := q.TimeRange.To.UTC()
-		log.DefaultLogger.Debug("Querying", "entry", qm.Entry, "from", from, "to", to, "when", qm.When)
+
+		when := qm.When
+		parseContent := qm.ParseContent
+
+		log.DefaultLogger.Debug(
+			"Querying",
+			"entry", qm.Entry,
+			"from", from, "to", to,
+			"when", when,
+			"parseContent", parseContent,
+		)
 		if from.After(to) {
 			return &backend.QueryDataResponse{
 				Responses: map[string]backend.DataResponse{
@@ -113,8 +123,14 @@ func (d *ReductDatasource) QueryData(ctx context.Context, req *backend.QueryData
 				},
 			}, nil
 		}
+	
+		options := reductgo.NewQueryOptionsBuilder().WithWhen(when)
+		if parseContent {
+			options.WithHead(false)
+		} else {
+			options.WithHead(true)
+		}
 
-		options := reductgo.NewQueryOptionsBuilder().WithHead(true).WithWhen(qm.When)
 		if !from.IsZero() {
 			options.WithStart(from.UnixMicro())
 		}
@@ -301,6 +317,7 @@ type reductQuery struct {
 	Bucket string `json:"bucket"`
 	Entry  string `json:"entry"`
 	When   any    `json:"when,omitempty"`
+	ParseContent bool   `json:"parseContent,omitempty"`
 }
 
 func (d *ReductDatasource) handleListBuckets(ctx context.Context, sender backend.CallResourceResponseSender) error {

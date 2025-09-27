@@ -14,6 +14,7 @@ export interface QueryOptions {
   ext?: any;
   strict?: boolean;
   continuous?: boolean;
+  parseContent?: boolean;
 }
 
 
