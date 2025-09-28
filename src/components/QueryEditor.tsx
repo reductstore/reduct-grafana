@@ -13,12 +13,22 @@ import 'codemirror/mode/javascript/javascript';
 type Props = QueryEditorProps<DataSource, ReductQuery, ReductSourceOptions>;
 
 export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) {
+  const emptyEditor = '{}';
   const [buckets, setBuckets] = useState<Array<ComboboxOption<string>>>([]);
+  const [bucket, setBucket] = useState<string | undefined>(query.bucket);
   const [entries, setEntries] = useState<Array<ComboboxOption<string>>>([]);
-  const [when, setWhen] = useState<string>('{}');
+  const [entry, setEntry] = useState<string | undefined>(query.entry);
+  const [mode, setMode] = useState<DataMode>(query.options?.mode ?? DataMode.Labels);
+  const [when, setWhen] = useState<string>(emptyEditor);
+  const [editorWhen, setEditorWhen] = useState<string>(emptyEditor);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const theme = useTheme2();
+  const modeOptions: Array<ComboboxOption<DataMode>> = [
+    { label: 'Labels only', value: DataMode.Labels },
+    { label: 'Content only', value: DataMode.Content },
+    { label: 'Labels + Content', value: DataMode.Both },
+  ];
 
   // Fetch bucket list on component mounts
   useEffect(() => {
@@ -50,30 +60,62 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
       });
   }, [query.bucket, datasource.id]);
 
+  // Control onChange and onRunQuery calls
+  useEffect(() => {
+    try {
+      const whenObj = when.trim() === '' ? {} : JSON5.parse(when);
+      onChange({
+        ...query,
+        bucket: bucket,
+        entry: entry,
+        options: { ...(query.options ?? {}), mode: mode, when: whenObj },
+      });
+      if (bucket && entry && !errorMessage) {
+        onRunQuery();
+      }
+      setErrorMessage(null);
+    } catch (err: any) {
+      setErrorMessage(err.message);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bucket, entry, mode, when]);
+
   const onBucketChange = (v?: SelectableValue<string>) => {
-    // reset entry on bucket change
-    onChange({ ...query, bucket: v?.value, entry: undefined });
+    const newBucket = v?.value;
+    setBucket(newBucket);
+    setEntry(undefined);
   };
 
   const onEntryChange = (v?: SelectableValue<string>) => {
-    onChange({ ...query, entry: v?.value });
-    onRunQuery();
+    const newEntry = v?.value;
+    setEntry(newEntry);
   };
 
-  // Options for the mode dropdown
-  const modeOptions: Array<ComboboxOption<DataMode>> = [
-    { label: 'Labels only', value: DataMode.Labels },
-    { label: 'Content only', value: DataMode.Content },
-    { label: 'Labels + Content', value: DataMode.Both },
-  ];
-
   const onModeChange = (opt: ComboboxOption<DataMode> | null) => {
-    const mode = opt?.value ?? DataMode.Labels;
-    onChange({
-      ...query,
-      options: { ...(query.options ?? {}), mode },
-    });
-    onRunQuery();
+    const newMode = opt?.value ?? DataMode.Labels;
+    setMode(newMode);
+  };
+
+  const onWhenBlur = (editor: any) => {
+    const value = editor.getValue().trim();
+    if (value === '') {
+      setEditorWhen(emptyEditor);
+      if (when !== emptyEditor) {
+        setWhen(emptyEditor);
+      }
+      setErrorMessage(null);
+      return;
+    }
+    try {
+      const pretty = JSON5.stringify(JSON5.parse(value), null, 2);
+      setEditorWhen(pretty);
+      if (when !== pretty) {
+        setWhen(pretty);
+      }
+      setErrorMessage(null);
+    } catch (err: any) {
+      setErrorMessage(err.message);
+    }
   };
 
   return (
@@ -82,64 +124,42 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
 
       <InlineFieldRow>
         <InlineField label="Bucket" grow>
-          <Combobox placeholder="Select bucket" options={buckets} value={query.bucket} onChange={onBucketChange} />
+          <Combobox placeholder="Select bucket" options={buckets} value={bucket} onChange={onBucketChange} />
         </InlineField>
 
-        {/* {query.bucket && ( */}
         <InlineField label="Entry" grow>
-          <Combobox placeholder="Select entry" options={entries} value={query.entry} onChange={onEntryChange} />
+          <Combobox placeholder="Select entry" options={entries} value={entry} onChange={onEntryChange} />
         </InlineField>
+
         <InlineField
           label="Scope"
           tooltip="Controls what the query returns: labels (metadata), content (payload), or both."
           grow
         >
-          <Combobox
-            placeholder="Select scope"
-            options={modeOptions}
-            value={query.options?.mode ?? DataMode.Labels}
-            onChange={onModeChange}
-          />
+          <Combobox placeholder="Select scope" options={modeOptions} value={mode} onChange={onModeChange} />
         </InlineField>
-        {/* )} */}
       </InlineFieldRow>
 
-      {/* {query.entry && ( */}
-      <>
-        <InlineField label="When" grow>
-          <CodeMirror
-            className="jsonEditor"
-            value={when}
-            options={{
-              mode: { name: 'javascript', json: true },
-              theme: theme.isDark ? 'dracula' : 'default',
-              lineNumbers: true,
-              lineWrapping: true,
-              viewportMargin: Infinity,
-              matchBrackets: true,
-              autoCloseBrackets: true,
-              readOnly: false,
-            }}
-            onBeforeChange={(editor: any, data: any, value: string) => {
-              setWhen(value);
-            }}
-            onBlur={(editor: any) => {
-              try {
-                const parsed = JSON5.parse(editor.getValue());
-                const pretty = JSON5.stringify(parsed, null, 2);
-
-                editor.setValue(pretty);
-                onChange({ ...query, options: { ...query.options, when: parsed } });
-                setErrorMessage(null);
-                onRunQuery();
-              } catch (e) {
-                setErrorMessage(e instanceof Error ? e.message : String(e));
-              }
-            }}
-          />
-        </InlineField>
-      </>
-      {/* )} */}
+      <InlineField label="When" grow>
+        <CodeMirror
+          className="jsonEditor"
+          value={editorWhen}
+          options={{
+            mode: { name: 'javascript', json: true },
+            theme: theme.isDark ? 'dracula' : 'default',
+            lineNumbers: true,
+            lineWrapping: true,
+            viewportMargin: Infinity,
+            matchBrackets: true,
+            autoCloseBrackets: true,
+            readOnly: false,
+          }}
+          onBeforeChange={(_, __, value: string) => {
+            setEditorWhen(value);
+          }}
+          onBlur={(editor: any) => onWhenBlur(editor)}
+        />
+      </InlineField>
     </>
   );
 }
