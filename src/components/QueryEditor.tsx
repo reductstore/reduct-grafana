@@ -50,7 +50,8 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
   }, [query.bucket, datasource.id]);
 
   const onBucketChange = (v?: SelectableValue<string>) => {
-    onChange({ ...query, bucket: v?.value, entry: undefined }); // reset entry on bucket change
+    // reset entry on bucket change
+    onChange({ ...query, bucket: v?.value, entry: undefined });
   };
 
   const onEntryChange = (v?: SelectableValue<string>) => {

@@ -175,7 +175,7 @@ func getFrames(records <-chan *reductgo.ReadableRecord, mode ReductMode) []*data
 	kinds  := make(map[string]reflect.Kind)
 
 	for record := range records {
-		if mode == ModeLabels || mode == ModeBoth {
+		if mode == "" || mode == ModeLabels || mode == ModeBoth {
 			processLabels(frames, kinds, record)
 		}
 		if mode == ModeContent || mode == ModeBoth {
