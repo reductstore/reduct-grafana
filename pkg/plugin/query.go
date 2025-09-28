@@ -24,11 +24,19 @@ import (
 func (d *ReductDatasource) QueryData(ctx context.Context, req *backend.QueryDataRequest) (*backend.QueryDataResponse, error) {
 	// create response struct
 	response := backend.NewQueryDataResponse()
-	log.DefaultLogger.Debug("Received QueryData", "queries", req.Queries)
 
 	// loop over queries and execute them individually.
 	for _, q := range req.Queries {
 		var qm reductQuery
+		log.DefaultLogger.Debug(
+			"QueryData received",
+			"ref_id", q.RefID,
+			"bucket", qm.Bucket,
+			"entry", qm.Entry,
+			"mode", qm.Options.Mode,
+			"from", q.TimeRange.From.UTC(),
+			"to", q.TimeRange.To.UTC(),
+		)
 
 		err := json.Unmarshal(q.JSON, &qm)
 		if err != nil {
@@ -54,13 +62,6 @@ func (d *ReductDatasource) QueryData(ctx context.Context, req *backend.QueryData
 		when := qm.Options.When
 		mode := qm.Options.Mode
 
-		log.DefaultLogger.Debug(
-			"Querying",
-			"entry", qm.Entry,
-			"from", from, "to", to,
-			"when", when,
-			"mode", mode,
-		)
 		if from.After(to) {
 			return &backend.QueryDataResponse{
 				Responses: map[string]backend.DataResponse{
@@ -91,7 +92,22 @@ func (d *ReductDatasource) QueryData(ctx context.Context, req *backend.QueryData
 	return response, nil
 }
 
-func (d *ReductDatasource) query(ctx context.Context, pCtx backend.PluginContext, bucketName string, entry string, options reductgo.QueryOptions, mode ReductMode) backend.DataResponse {
+func (d *ReductDatasource) query(
+	ctx context.Context,
+	pCtx backend.PluginContext,
+	bucketName string,
+	entry string,
+	options reductgo.QueryOptions,
+	mode ReductMode,
+) backend.DataResponse {
+	log.DefaultLogger.Debug(
+		"Executing query",
+		"bucket", bucketName,
+		"entry", entry,
+		"mode", mode,
+		"org_id", pCtx.OrgID,
+		"ds_uid", pCtx.DataSourceInstanceSettings.UID,
+	)
 	bucket, err := d.reductClient.GetBucket(ctx, bucketName)
 	if err != nil {
 		log.DefaultLogger.Error("Failed to get bucket", "error", err)
@@ -137,16 +153,16 @@ func getFrames(records <-chan *reductgo.ReadableRecord, mode ReductMode) []*data
 }
 
 // processContent processes the content of a record and appends it to the frames.
-func processLabels(frames map[string]*data.Frame, labelInitialType map[string]reflect.Kind, record *reductgo.ReadableRecord) {
+func processLabels(frames map[string]*data.Frame, initial map[string]reflect.Kind, record *reductgo.ReadableRecord) {
 	for key, labelValue := range record.Labels() {
 
 		strValue := fmt.Sprintf("%v", labelValue)
-		initialType, ok := labelInitialType[key]
+		initialType, ok := initial[key]
 		value := parseValue(strValue)
 
 		if !ok {
 			kind := reflect.TypeOf(value).Kind()
-			labelInitialType[key] = kind
+			initial[key] = kind
 			initialType = kind
 		}
 
@@ -188,7 +204,6 @@ func processContent(
 		return
 	}
 
-	// quick JSON sniff
 	b := []byte(s)
 	if !looksLikeJSON(b) {
 		return
