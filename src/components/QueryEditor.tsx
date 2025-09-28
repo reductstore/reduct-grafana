@@ -5,6 +5,7 @@ import { QueryEditorProps, SelectableValue } from '@grafana/data';
 import { DataMode, ReductQuery, ReductSourceOptions } from '../types';
 import { DataSource } from '../datasource';
 import { Controlled as CodeMirror } from 'react-codemirror2';
+import JSON5 from 'json5';
 import 'codemirror/lib/codemirror.css';
 import 'codemirror/theme/dracula.css';
 import 'codemirror/mode/javascript/javascript';
@@ -84,57 +85,61 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
           <Combobox placeholder="Select bucket" options={buckets} value={query.bucket} onChange={onBucketChange} />
         </InlineField>
 
-        {query.bucket && (
-          <InlineField label="Entry" grow>
-            <Combobox placeholder="Select entry" options={entries} value={query.entry} onChange={onEntryChange} />
-          </InlineField>
-        )}
+        {/* {query.bucket && ( */}
+        <InlineField label="Entry" grow>
+          <Combobox placeholder="Select entry" options={entries} value={query.entry} onChange={onEntryChange} />
+        </InlineField>
+        <InlineField
+          label="Scope"
+          tooltip="Controls what the query returns: labels (metadata), content (payload), or both."
+          grow
+        >
+          <Combobox
+            placeholder="Select scope"
+            options={modeOptions}
+            value={query.options?.mode ?? DataMode.Labels}
+            onChange={onModeChange}
+          />
+        </InlineField>
+        {/* )} */}
       </InlineFieldRow>
 
-      {query.entry && (
-        <>
-          <InlineField
-            label="Result scope"
-            tooltip="Controls what the query returns: labels (metadata), content (payload), or both."
-          >
-            <Combobox
-              placeholder="Select scope…"
-              options={modeOptions}
-              value={query.options?.mode ?? DataMode.Labels}
-              onChange={onModeChange}
-            />
-          </InlineField>
+      {/* {query.entry && ( */}
+      <>
+        <InlineField label="When" grow>
+          <CodeMirror
+            className="jsonEditor"
+            value={when}
+            options={{
+              mode: { name: 'javascript', json: true },
+              theme: theme.isDark ? 'dracula' : 'default',
+              lineNumbers: true,
+              lineWrapping: true,
+              viewportMargin: Infinity,
+              matchBrackets: true,
+              autoCloseBrackets: true,
+              readOnly: false,
+            }}
+            onBeforeChange={(editor: any, data: any, value: string) => {
+              setWhen(value);
+            }}
+            onBlur={(editor: any) => {
+              try {
+                const parsed = JSON5.parse(editor.getValue());
+                const pretty = JSON5.stringify(parsed, null, 2);
 
-          <InlineField label="When" grow>
-            <CodeMirror
-              className="jsonEditor"
-              value={when}
-              options={{
-                mode: { name: 'javascript', json: true },
-                theme: theme.isDark ? 'dracula' : 'default',
-                lineNumbers: true,
-                lineWrapping: true,
-                viewportMargin: Infinity,
-                matchBrackets: true,
-                autoCloseBrackets: true,
-                readOnly: false,
-              }}
-              onBeforeChange={(editor: any, data: any, value: string) => {
-                setWhen(value);
-              }}
-              onBlur={(editor: any) => {
-                try {
-                  onChange({ ...query, options: { ...query.options, when: JSON.parse(editor.getValue()) } });
-                  setErrorMessage(null);
-                  onRunQuery();
-                } catch (e) {
-                  setErrorMessage(e instanceof Error ? e.message : String(e));
-                }
-              }}
-            />
-          </InlineField>
-        </>
-      )}
+                editor.setValue(pretty);
+                onChange({ ...query, options: { ...query.options, when: parsed } });
+                setErrorMessage(null);
+                onRunQuery();
+              } catch (e) {
+                setErrorMessage(e instanceof Error ? e.message : String(e));
+              }
+            }}
+          />
+        </InlineField>
+      </>
+      {/* )} */}
     </>
   );
 }
