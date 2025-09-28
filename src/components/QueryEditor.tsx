@@ -4,24 +4,26 @@ import { getBackendSrv } from '@grafana/runtime';
 import { QueryEditorProps, SelectableValue } from '@grafana/data';
 import { DataMode, ReductQuery, ReductSourceOptions } from '../types';
 import { DataSource } from '../datasource';
+import { parseJson, stringifyJson } from '../utils/json';
 import { Controlled as CodeMirror } from 'react-codemirror2';
-import JSON5 from 'json5';
 import 'codemirror/lib/codemirror.css';
 import 'codemirror/theme/dracula.css';
 import 'codemirror/mode/javascript/javascript';
+import 'codemirror/addon/edit/matchbrackets';
 
 type Props = QueryEditorProps<DataSource, ReductQuery, ReductSourceOptions>;
 
 export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) {
-  const emptyEditor = '{}';
   const [buckets, setBuckets] = useState<Array<ComboboxOption<string>>>([]);
   const [bucket, setBucket] = useState<string | undefined>(query.bucket);
   const [entries, setEntries] = useState<Array<ComboboxOption<string>>>([]);
   const [entry, setEntry] = useState<string | undefined>(query.entry);
   const [mode, setMode] = useState<DataMode>(query.options?.mode ?? DataMode.Labels);
-  const [when, setWhen] = useState<string>(emptyEditor);
-  const [editorWhen, setEditorWhen] = useState<string>(emptyEditor);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const initialWhen = query.options?.when ? stringifyJson(query.options.when) : '{}';
+  const [when, setWhen] = useState<string>(initialWhen);
+  const [editorWhen, setEditorWhen] = useState<string>(initialWhen);
 
   const theme = useTheme2();
   const modeOptions: Array<ComboboxOption<DataMode>> = [
@@ -63,7 +65,7 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
   // Control onChange and onRunQuery calls
   useEffect(() => {
     try {
-      const whenObj = when.trim() === '' ? {} : JSON5.parse(when);
+      const whenObj = when.trim() === '' ? {} : parseJson(when);
       onChange({
         ...query,
         bucket: bucket,
@@ -99,15 +101,16 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
   const onWhenBlur = (editor: any) => {
     const value = editor.getValue().trim();
     if (value === '') {
-      setEditorWhen(emptyEditor);
-      if (when !== emptyEditor) {
-        setWhen(emptyEditor);
+      setEditorWhen('{}');
+      if (when !== '{}') {
+        setWhen('{}');
       }
       setErrorMessage(null);
       return;
     }
     try {
-      const pretty = JSON5.stringify(JSON5.parse(value), null, 2);
+      const parsed = parseJson(value);
+      const pretty = stringifyJson(parsed);
       setEditorWhen(pretty);
       if (when !== pretty) {
         setWhen(pretty);
@@ -151,12 +154,11 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
             lineWrapping: true,
             viewportMargin: Infinity,
             matchBrackets: true,
-            autoCloseBrackets: true,
             readOnly: false,
+            indentUnit: 2,
+            tabSize: 2,
           }}
-          onBeforeChange={(_, __, value: string) => {
-            setEditorWhen(value);
-          }}
+          onBeforeChange={(_, __, value: string) => setEditorWhen(value)}
           onBlur={(editor: any) => onWhenBlur(editor)}
         />
       </InlineField>
