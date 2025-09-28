@@ -28,15 +28,6 @@ func (d *ReductDatasource) QueryData(ctx context.Context, req *backend.QueryData
 	// loop over queries and execute them individually.
 	for _, q := range req.Queries {
 		var qm reductQuery
-		log.DefaultLogger.Debug(
-			"QueryData received",
-			"ref_id", q.RefID,
-			"bucket", qm.Bucket,
-			"entry", qm.Entry,
-			"mode", qm.Options.Mode,
-			"from", q.TimeRange.From.UTC(),
-			"to", q.TimeRange.To.UTC(),
-		)
 
 		err := json.Unmarshal(q.JSON, &qm)
 		if err != nil {
@@ -47,6 +38,16 @@ func (d *ReductDatasource) QueryData(ctx context.Context, req *backend.QueryData
 				},
 			}, nil
 		}
+
+		log.DefaultLogger.Debug(
+			"QueryData received",
+			"ref_id", q.RefID,
+			"bucket", qm.Bucket,
+			"entry", qm.Entry,
+			"mode", qm.Options.Mode,
+			"from", q.TimeRange.From.UTC(),
+			"to", q.TimeRange.To.UTC(),
+		)
 
 		// Validate required fields
 		if qm.Bucket == "" || qm.Entry == "" {
@@ -100,14 +101,6 @@ func (d *ReductDatasource) query(
 	options reductgo.QueryOptions,
 	mode ReductMode,
 ) backend.DataResponse {
-	log.DefaultLogger.Debug(
-		"Executing query",
-		"bucket", bucketName,
-		"entry", entry,
-		"mode", mode,
-		"org_id", pCtx.OrgID,
-		"ds_uid", pCtx.DataSourceInstanceSettings.UID,
-	)
 	bucket, err := d.reductClient.GetBucket(ctx, bucketName)
 	if err != nil {
 		log.DefaultLogger.Error("Failed to get bucket", "error", err)

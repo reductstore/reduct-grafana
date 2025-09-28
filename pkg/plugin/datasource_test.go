@@ -44,7 +44,13 @@ func runQuery(tb testing.TB, query string) (backend.QueryDataResponse, func(tb t
 			},
 		})
 
-		err := record.Write("any")
+		b, _ := json.Marshal(map[string]any{
+			"temp": float64(i) + 0.25,
+			"flag": i%2 == 0,
+			"meta": map[string]any{"seq": i},
+		})
+		body := string(b)
+		err := record.Write(body)
 
 		if err != nil {
 			tb.Fatal(err)
@@ -195,4 +201,89 @@ func findByName(resp *backend.QueryDataResponse, name string) int {
 		}
 	}
 	return idx
+}
+
+func TestQueryData_ContentMode_ParsesJSON(t *testing.T) {
+	resp, teardown := runQuery(t, `{
+		"Bucket": "test-bucket",
+		"Entry": "entity1",
+		"Options": { "Mode": "content" }
+	}`)
+	defer teardown(t)
+
+	dr := resp.Responses["A"]
+	assert.Nil(t, dr.Error)
+
+	idx := findByName(&resp, "$.temp")
+	if idx == -1 {
+		t.Fatalf("frame $.temp not found")
+	}
+	assert.Equal(t, 10, dr.Frames[idx].Rows())
+	assert.Equal(t, 0.25, dr.Frames[idx].Fields[1].At(0))
+	assert.Equal(t, 9.25, dr.Frames[idx].Fields[1].At(9))
+
+	idx = findByName(&resp, "$.flag")
+	if idx == -1 {
+		t.Fatalf("frame $.flag not found")
+	}
+	assert.Equal(t, true, dr.Frames[idx].Fields[1].At(0))
+	assert.Equal(t, false, dr.Frames[idx].Fields[1].At(9))
+
+	idx = findByName(&resp, "$.meta.seq")
+	if idx == -1 {
+		t.Fatalf("frame $.meta.seq not found")
+	}
+	assert.Equal(t, int64(0), dr.Frames[idx].Fields[1].At(0))
+	assert.Equal(t, int64(9), dr.Frames[idx].Fields[1].At(9))
+}
+
+func TestQueryData_BothMode_LabelsAndJSON(t *testing.T) {
+	resp, teardown := runQuery(t, `{
+		"Bucket": "test-bucket",
+		"Entry": "entity1",
+		"Options": { "Mode": "both" }
+	}`)
+	defer teardown(t)
+
+	dr := resp.Responses["A"]
+	assert.Nil(t, dr.Error)
+
+	idxLabel := findByName(&resp, "int-label")
+	if idxLabel == -1 {
+		t.Fatalf("label frame 'int-label' not found")
+	}
+	assert.Equal(t, 10, dr.Frames[idxLabel].Rows())
+	assert.Equal(t, int64(0), dr.Frames[idxLabel].Fields[1].At(0))
+	assert.Equal(t, int64(9), dr.Frames[idxLabel].Fields[1].At(9))
+
+	idxJSON := findByName(&resp, "$.temp")
+	if idxJSON == -1 {
+		t.Fatalf("json frame '$.temp' not found")
+	}
+	assert.Equal(t, 0.25, dr.Frames[idxJSON].Fields[1].At(0))
+	assert.Equal(t, 9.25, dr.Frames[idxJSON].Fields[1].At(9))
+}
+
+func TestQueryData_LabelsMode_IgnoresJSON(t *testing.T) {
+	resp, teardown := runQuery(t, `{
+		"Bucket": "test-bucket",
+		"Entry": "entity1",
+		"Options": { "Mode": "labels" }
+	}`)
+	defer teardown(t)
+
+	dr := resp.Responses["A"]
+	assert.Nil(t, dr.Error)
+
+	assert.Equal(t, -1, findByName(&resp, "$.temp"))
+	assert.Equal(t, -1, findByName(&resp, "$.flag"))
+	assert.Equal(t, -1, findByName(&resp, "$.meta.seq"))
+
+	idx := findByName(&resp, "string-label")
+	if idx == -1 {
+		t.Fatalf("label frame 'string-label' not found")
+	}
+	assert.Equal(t, 10, dr.Frames[idx].Rows())
+	assert.Equal(t, "label-0", dr.Frames[idx].Fields[1].At(0))
+	assert.Equal(t, "label-9", dr.Frames[idx].Fields[1].At(9))
 }
