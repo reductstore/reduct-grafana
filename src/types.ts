@@ -1,6 +1,12 @@
 import { DataSourceJsonData } from '@grafana/data';
 import { DataQuery } from '@grafana/schema';
 
+export enum DataMode {
+  Labels = 'labels',
+  Content = 'content',
+  Both = 'both',
+}
+
 export interface ReductQuery extends DataQuery {
   bucket?: string;
   entry?: string;
@@ -14,8 +20,8 @@ export interface QueryOptions {
   ext?: any;
   strict?: boolean;
   continuous?: boolean;
+  mode?: DataMode;
 }
-
 
 /**
  * These are options configured for each DataSource instance

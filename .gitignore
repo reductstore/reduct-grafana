@@ -47,3 +47,6 @@ ci/
 .vscode
 data
 .reductstore
+
+# Test scripts
+test-scripts/

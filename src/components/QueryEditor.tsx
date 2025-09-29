@@ -1,114 +1,167 @@
-import React, {useEffect, useState} from 'react';
-import {Alert, Combobox, ComboboxOption, InlineField, InlineFieldRow, useTheme2} from '@grafana/ui';
-import {getBackendSrv} from '@grafana/runtime';
-import {QueryEditorProps, SelectableValue} from '@grafana/data';
-import {ReductQuery, ReductSourceOptions} from '../types';
-import {DataSource} from '../datasource';
-import {Controlled as CodeMirror} from "react-codemirror2"
-import "codemirror/lib/codemirror.css";
-import "codemirror/theme/dracula.css";
-import "codemirror/mode/javascript/javascript";
+import React, { useEffect, useState } from 'react';
+import { Alert, Combobox, ComboboxOption, InlineField, InlineFieldRow, useTheme2 } from '@grafana/ui';
+import { getBackendSrv } from '@grafana/runtime';
+import { QueryEditorProps, SelectableValue } from '@grafana/data';
+import { DataMode, ReductQuery, ReductSourceOptions } from '../types';
+import { DataSource } from '../datasource';
+import { parseJson, stringifyJson } from '../utils/json';
+import { Controlled as CodeMirror } from 'react-codemirror2';
+import 'codemirror/lib/codemirror.css';
+import 'codemirror/theme/dracula.css';
+import 'codemirror/mode/javascript/javascript';
+import 'codemirror/addon/edit/matchbrackets';
 
 type Props = QueryEditorProps<DataSource, ReductQuery, ReductSourceOptions>;
 
-export function QueryEditor({query, onChange, onRunQuery, datasource}: Props) {
-    const [buckets, setBuckets] = useState<Array<ComboboxOption<string>>>([]);
-    const [entries, setEntries] = useState<Array<ComboboxOption<string>>>([]);
-    const [when, setWhen] = useState<string>("{}");
-    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) {
+  const [buckets, setBuckets] = useState<Array<ComboboxOption<string>>>([]);
+  const [bucket, setBucket] = useState<string | undefined>(query.bucket);
+  const [entries, setEntries] = useState<Array<ComboboxOption<string>>>([]);
+  const [entry, setEntry] = useState<string | undefined>(query.entry);
+  const [mode, setMode] = useState<DataMode>(query.options?.mode ?? DataMode.Labels);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-    const theme = useTheme2()
-    // 1. Fetch bucket list when component mounts
-    useEffect(() => {
-        getBackendSrv()
-            .get(`/api/datasources/${datasource.id}/resources/listBuckets`)
-            .then((res) => {
-                const options = res.map((b: any) => ({
-                    label: b.name,
-                    value: b.name,
-                }));
-                setBuckets(options);
-            });
-    }, [datasource.id]);
+  const initialWhen = query.options?.when ? stringifyJson(query.options.when) : '{}';
+  const [when, setWhen] = useState<string>(initialWhen);
+  const [editorWhen, setEditorWhen] = useState<string>(initialWhen);
 
-    // 2. Fetch entry list when a bucket is selected
-    useEffect(() => {
-        if (!query.bucket) {
-            return
-        }
+  const theme = useTheme2();
+  const modeOptions: Array<ComboboxOption<DataMode>> = [
+    { label: 'Labels only', value: DataMode.Labels },
+    { label: 'Content only', value: DataMode.Content },
+    { label: 'Labels + Content', value: DataMode.Both },
+  ];
 
-        getBackendSrv()
-            .post(`/api/datasources/${datasource.id}/resources/listEntries`, {bucket: query.bucket})
-            .then((res) => {
-                const entryOptions = res.map((e: any) => ({
-                    label: e.name,
-                    value: e.name,
-                }));
-                setEntries(entryOptions);
-            });
-    }, [query.bucket, datasource.id]);
+  // Fetch bucket list on component mounts
+  useEffect(() => {
+    getBackendSrv()
+      .get(`/api/datasources/${datasource.id}/resources/listBuckets`)
+      .then((res) => {
+        const options = res.map((b: any) => ({
+          label: b.name,
+          value: b.name,
+        }));
+        setBuckets(options);
+      });
+  }, [datasource.id]);
 
-    const onBucketChange = (v?: SelectableValue<string>) => {
-        onChange({...query, bucket: v?.value, entry: undefined}); // reset entry on bucket change
-    };
+  // Fetch entry list when a bucket is selected
+  useEffect(() => {
+    if (!query.bucket) {
+      return;
+    }
 
-    const onEntryChange = (v?: SelectableValue<string>) => {
-        console.log("onEntryChange", v);
-        onChange({...query, entry: v?.value});
+    getBackendSrv()
+      .post(`/api/datasources/${datasource.id}/resources/listEntries`, { bucket: query.bucket })
+      .then((res) => {
+        const entryOptions = res.map((e: any) => ({
+          label: e.name,
+          value: e.name,
+        }));
+        setEntries(entryOptions);
+      });
+  }, [query.bucket, datasource.id]);
+
+  // Control onChange and onRunQuery calls
+  useEffect(() => {
+    try {
+      const whenObj = when.trim() === '' ? {} : parseJson(when);
+      onChange({
+        ...query,
+        bucket: bucket,
+        entry: entry,
+        options: { ...(query.options ?? {}), mode: mode, when: whenObj },
+      });
+      if (bucket && entry && !errorMessage) {
         onRunQuery();
-    };
+      }
+      setErrorMessage(null);
+    } catch (err: any) {
+      setErrorMessage(err.message);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bucket, entry, mode, when]);
 
-    return (
-        <>
-            {errorMessage &&
-                <Alert title="Error: ">{errorMessage}</Alert>}
+  const onBucketChange = (v?: SelectableValue<string>) => {
+    const newBucket = v?.value;
+    setBucket(newBucket);
+    setEntry(undefined);
+  };
 
-            <InlineFieldRow>
-                <InlineField label="Bucket" grow>
-                    <Combobox placeholder="Select bucket" options={buckets} value={query.bucket}
-                              onChange={onBucketChange}/>
-                </InlineField>
+  const onEntryChange = (v?: SelectableValue<string>) => {
+    const newEntry = v?.value;
+    setEntry(newEntry);
+  };
 
-                {query.bucket && (
-                    <InlineField label="Entry" grow>
-                        <Combobox placeholder="Select entry" options={entries} value={query.entry}
-                                  onChange={onEntryChange}/>
-                    </InlineField>
-                )}
-            </InlineFieldRow>
+  const onModeChange = (opt: ComboboxOption<DataMode> | null) => {
+    const newMode = opt?.value ?? DataMode.Labels;
+    setMode(newMode);
+  };
 
-            {query.entry && (
-                <InlineField label="When" grow>
-                    <CodeMirror
-                        className="jsonEditor"
-                        value={when}
-                        options={{
-                            mode: {name: "javascript", json: true},
-                            theme: theme.isDark ? "dracula" : "default",
-                            lineNumbers: true,
-                            lineWrapping: true,
-                            viewportMargin: Infinity,
-                            matchBrackets: true,
-                            autoCloseBrackets: true,
-                            readOnly: false,
-                        }}
-                        onBeforeChange={(editor: any, data: any, value: string) => {
-                            setWhen(value);
-                        }}
-                        onBlur={(editor: any) => {
-                            try {
-                                const newState = {...query, when: JSON.parse(editor.getValue())};
-                                onChange(newState); // Update query with new 'when' value
-                                setErrorMessage(null);
-                                onRunQuery();
-                            } catch (e) {
-                                setErrorMessage(e instanceof Error ? e.message : String(e));
-                            }
-                        }}/>
-                </InlineField>
+  const onWhenBlur = (editor: any) => {
+    const value = editor.getValue().trim();
+    if (value === '') {
+      setEditorWhen('{}');
+      if (when !== '{}') {
+        setWhen('{}');
+      }
+      setErrorMessage(null);
+      return;
+    }
+    try {
+      const parsed = parseJson(value);
+      const pretty = stringifyJson(parsed);
+      setEditorWhen(pretty);
+      if (when !== pretty) {
+        setWhen(pretty);
+      }
+      setErrorMessage(null);
+    } catch (err: any) {
+      setErrorMessage(err.message);
+    }
+  };
 
-            )}
+  return (
+    <>
+      {errorMessage && <Alert title="Error: ">{errorMessage}</Alert>}
 
-        </>
-    );
+      <InlineFieldRow>
+        <InlineField label="Bucket" grow>
+          <Combobox placeholder="Select bucket" options={buckets} value={bucket} onChange={onBucketChange} />
+        </InlineField>
+
+        <InlineField label="Entry" grow>
+          <Combobox placeholder="Select entry" options={entries} value={entry} onChange={onEntryChange} />
+        </InlineField>
+
+        <InlineField
+          label="Scope"
+          tooltip="Controls what the query returns: labels (metadata), content (payload), or both."
+          grow
+        >
+          <Combobox placeholder="Select scope" options={modeOptions} value={mode} onChange={onModeChange} />
+        </InlineField>
+      </InlineFieldRow>
+
+      <InlineField label="When" grow>
+        <CodeMirror
+          className="jsonEditor"
+          value={editorWhen}
+          options={{
+            mode: { name: 'javascript', json: true },
+            theme: theme.isDark ? 'dracula' : 'default',
+            lineNumbers: true,
+            lineWrapping: true,
+            viewportMargin: Infinity,
+            matchBrackets: true,
+            readOnly: false,
+            indentUnit: 2,
+            tabSize: 2,
+          }}
+          onBeforeChange={(_, __, value: string) => setEditorWhen(value)}
+          onBlur={(editor: any) => onWhenBlur(editor)}
+        />
+      </InlineField>
+    </>
+  );
 }
