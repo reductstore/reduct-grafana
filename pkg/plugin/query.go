@@ -123,20 +123,18 @@ func (d *ReductDatasource) query(
 }
 
 func getFrames(records <-chan *reductgo.ReadableRecord, mode ReductMode) []*data.Frame {
-	// map of frames for each label
 	frames := make(map[string]*data.Frame)
-	kinds := make(map[string]reflect.Kind)
+	labelKinds := make(map[string]reflect.Kind)
 
 	for record := range records {
 		if mode == "" || mode == ModeLabels || mode == ModeBoth {
-			processLabels(frames, kinds, record)
+			processLabels(frames, labelKinds, record)
 		}
 		if mode == ModeContent || mode == ModeBoth {
-			processContent(frames, kinds, record)
+			processContent(frames, record)
 		}
 	}
 
-	// return frames as an array
 	result := make([]*data.Frame, 0, len(frames))
 	for _, frame := range frames {
 		// Append timestamp field if not already present
@@ -146,16 +144,16 @@ func getFrames(records <-chan *reductgo.ReadableRecord, mode ReductMode) []*data
 }
 
 // processContent processes the content of a record and appends it to the frames.
-func processLabels(frames map[string]*data.Frame, initial map[string]reflect.Kind, record *reductgo.ReadableRecord) {
+func processLabels(frames map[string]*data.Frame, kindMap map[string]reflect.Kind, record *reductgo.ReadableRecord) {
 	for key, labelValue := range record.Labels() {
 
 		strValue := fmt.Sprintf("%v", labelValue)
-		initialType, ok := initial[key]
+		initialType, ok := kindMap[key]
 		value := parseValue(strValue)
 
 		if !ok {
 			kind := reflect.TypeOf(value).Kind()
-			initial[key] = kind
+			kindMap[key] = kind
 			initialType = kind
 		}
 
@@ -186,10 +184,9 @@ func processLabels(frames map[string]*data.Frame, initial map[string]reflect.Kin
 	}
 }
 
-// processContent reads record body, tries to parse JSON, flattens it, and appends values as frames.
+// processContent reads record body, parses JSON, flattens it, and appends values to frames.
 func processContent(
 	frames map[string]*data.Frame,
-	initial map[string]reflect.Kind,
 	record *reductgo.ReadableRecord,
 ) {
 	s, err := record.ReadAsString()
@@ -210,32 +207,18 @@ func processContent(
 	flat := map[string]any{}
 	flattenJSON("$", v, flat)
 
-	for k, raw := range flat {
-		str := fmt.Sprintf("%v", raw)
-		kind, ok := initial[k]
-		val := parseValue(str)
-
-		if !ok {
-			kind = reflect.TypeOf(val).Kind()
-			initial[k] = kind
-		} else if reflect.TypeOf(val).Kind() != kind {
-			if coerced, err := coerceToKind(str, kind); err == nil {
-				val = coerced
-			} else {
-				val = str
-			}
-		}
-
-		switch vv := val.(type) {
+	for k, val := range flat {
+		switch v := val.(type) {
 		case int64:
-			appendValue(frames, k, record, vv)
+			appendValue(frames, k, record, v)
 		case float64:
-			appendValue(frames, k, record, vv)
+			appendValue(frames, k, record, v)
 		case bool:
-			appendValue(frames, k, record, vv)
+			appendValue(frames, k, record, v)
 		case string:
-			appendValue(frames, k, record, vv)
+			appendValue(frames, k, record, v)
 		default:
+			str := fmt.Sprintf("%v", val)
 			appendValue(frames, k, record, str)
 		}
 	}

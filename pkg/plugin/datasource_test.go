@@ -45,9 +45,11 @@ func runQuery(tb testing.TB, query string) (backend.QueryDataResponse, func(tb t
 		})
 
 		b, _ := json.Marshal(map[string]any{
-			"temp": float64(i) + 0.25,
-			"flag": i%2 == 0,
-			"meta": map[string]any{"seq": i},
+			"temp":       float64(i) + 0.25,
+			"flag":       i%2 == 0,
+			"meta":       map[string]any{"seq": i},
+			"str_number": "123",
+			"source_id":  "00000001_000",
 		})
 		body := string(b)
 		err := record.Write(body)
@@ -233,8 +235,8 @@ func TestQueryData_ContentMode_ParsesJSON(t *testing.T) {
 	if idx == -1 {
 		t.Fatalf("frame $.meta.seq not found")
 	}
-	assert.Equal(t, int64(0), dr.Frames[idx].Fields[1].At(0))
-	assert.Equal(t, int64(9), dr.Frames[idx].Fields[1].At(9))
+	assert.Equal(t, float64(0), dr.Frames[idx].Fields[1].At(0))
+	assert.Equal(t, float64(9), dr.Frames[idx].Fields[1].At(9))
 }
 
 func TestQueryData_BothMode_LabelsAndJSON(t *testing.T) {
@@ -286,4 +288,30 @@ func TestQueryData_LabelsMode_IgnoresJSON(t *testing.T) {
 	assert.Equal(t, 10, dr.Frames[idx].Rows())
 	assert.Equal(t, "label-0", dr.Frames[idx].Fields[1].At(0))
 	assert.Equal(t, "label-9", dr.Frames[idx].Fields[1].At(9))
+}
+
+func TestQueryData_ContentMode_PreservesJSONStringTypes(t *testing.T) {
+	resp, teardown := runQuery(t, `{
+		"Bucket": "test-bucket",
+		"Entry": "entity1",
+		"Options": { "Mode": "content" }
+	}`)
+	defer teardown(t)
+
+	dr := resp.Responses["A"]
+	assert.Nil(t, dr.Error)
+
+	idx := findByName(&resp, "$.str_number")
+	if idx == -1 {
+		t.Fatalf("frame $.str_number not found")
+	}
+	assert.Equal(t, 10, dr.Frames[idx].Rows())
+	assert.Equal(t, "123", dr.Frames[idx].Fields[1].At(0))
+
+	idx = findByName(&resp, "$.source_id")
+	if idx == -1 {
+		t.Fatalf("frame $.source_id not found")
+	}
+	assert.Equal(t, 10, dr.Frames[idx].Rows())
+	assert.Equal(t, "00000001_000", dr.Frames[idx].Fields[1].At(0))
 }

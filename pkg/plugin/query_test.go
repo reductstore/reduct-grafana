@@ -67,3 +67,74 @@ func TestProcessLabels(t *testing.T) {
 	assert.Equal(t, data.FieldTypeString, strFrame.Fields[1].Type())
 	assert.Equal(t, data.NewField("value", nil, []string{"hello", "world", "stay"}), strFrame.Fields[1])
 }
+
+func TestProcessContent_PreservesJSONTypes(t *testing.T) {
+	frames := make(map[string]*data.Frame)
+
+	jsonContent1 := `{
+		"str_number": "123",
+		"source_id": "00000001_000",
+		"temp": 25.5,
+		"flag": true,
+		"count": 42
+	}`
+
+	record1 := reductgo.NewReadableRecord(
+		time.Now().UnixMicro(),
+		0,
+		true,
+		io.NopCloser(strings.NewReader(jsonContent1)),
+		reductgo.LabelMap{},
+		"application/json",
+	)
+
+	jsonContent2 := `{
+		"str_number": "456",
+		"source_id": "00000002_001",
+		"temp": 30.0,
+		"flag": false,
+		"count": 84
+	}`
+
+	record2 := reductgo.NewReadableRecord(
+		time.Now().Add(time.Second).UnixMicro(),
+		0,
+		true,
+		io.NopCloser(strings.NewReader(jsonContent2)),
+		reductgo.LabelMap{},
+		"application/json",
+	)
+
+	processContent(frames, record1)
+	processContent(frames, record2)
+
+	strNumFrame, exists := frames["$.str_number"]
+	assert.True(t, exists, "$.str_number frame should exist")
+	assert.Equal(t, data.FieldTypeString, strNumFrame.Fields[1].Type())
+	assert.Equal(t, "123", strNumFrame.Fields[1].At(0))
+	assert.Equal(t, "456", strNumFrame.Fields[1].At(1))
+
+	sourceIdFrame, exists := frames["$.source_id"]
+	assert.True(t, exists, "$.source_id frame should exist")
+	assert.Equal(t, data.FieldTypeString, sourceIdFrame.Fields[1].Type())
+	assert.Equal(t, "00000001_000", sourceIdFrame.Fields[1].At(0))
+	assert.Equal(t, "00000002_001", sourceIdFrame.Fields[1].At(1))
+
+	tempFrame, exists := frames["$.temp"]
+	assert.True(t, exists, "$.temp frame should exist")
+	assert.Equal(t, data.FieldTypeFloat64, tempFrame.Fields[1].Type())
+	assert.Equal(t, 25.5, tempFrame.Fields[1].At(0))
+	assert.Equal(t, 30.0, tempFrame.Fields[1].At(1))
+
+	flagFrame, exists := frames["$.flag"]
+	assert.True(t, exists, "$.flag frame should exist")
+	assert.Equal(t, data.FieldTypeBool, flagFrame.Fields[1].Type())
+	assert.Equal(t, true, flagFrame.Fields[1].At(0))
+	assert.Equal(t, false, flagFrame.Fields[1].At(1))
+
+	countFrame, exists := frames["$.count"]
+	assert.True(t, exists, "$.count frame should exist")
+	assert.Equal(t, data.FieldTypeFloat64, countFrame.Fields[1].Type())
+	assert.Equal(t, float64(42), countFrame.Fields[1].At(0))
+	assert.Equal(t, float64(84), countFrame.Fields[1].At(1))
+}
