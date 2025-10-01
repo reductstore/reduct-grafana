@@ -8,16 +8,16 @@
   "alerting": true,
   "executable": "gpx_reductstore",
   "info": {
-    "description": "",
+    "description": "ReductStore is An ELT-based solution for robotics and industrial IoT data acquisition systems. Capture data in its raw form, ingest and stream data of any size-images, sensor readings, logs, files, ROS bags-and store it with time indexing and labels for ultra-fast retrieval and management.",
     "author": {
       "name": "ReductSoftware UG",
       "url": "https://www.reduct.store",
       "email": "support@reduct.store"
     },
-    "keywords": ["datasource"],
+    "keywords": ["datasource", "reductstore", "reduct", "iot", "robotics", "industrial"],
     "logos": {
-      "small": "https://www.reduct.store/img/logo.webp",
-      "large": "https://www.reduct.store/img/logo.webp"
+      "small": "/img/logo.svg",
+      "large": "/img/logo.svg"
     },
     "links": [],
     "screenshots": [],
