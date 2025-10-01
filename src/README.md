@@ -33,11 +33,11 @@ ReductStore can be queried using time ranges and labels (metadata) to filter dat
 
 For example, you can visualize labels:
 
-![Query Labels](./img/screenshot-query-labels.png)
+![Query Labels](https://raw.githubusercontent.com/reductstore/reduct-grafana/main/src/img/screenshot-query-labels.png)
 
 And you can use ReductStore's extensions to filter and extract specific fields from JSON, CSV, MCAP or logs. Here is an example of querying JSON content:
 
-![Query Content](./img/screenshot-query-content.png)
+![Query Content](https://raw.githubusercontent.com/reductstore/reduct-grafana/main/src/img/screenshot-query-content.png)
 
 For more information about querying JSON or CSV content, see the [ReductSelect Extension](https://www.reduct.store/docs/extensions/official/select-ext).
 

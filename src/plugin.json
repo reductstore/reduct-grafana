@@ -27,14 +27,14 @@
       "elt"
     ],
     "logos": {
-      "small": "/img/logo.svg",
-      "large": "/img/logo.svg"
+      "small": "img/logo.svg",
+      "large": "img/logo.svg"
     },
     "links": [
       { "name": "Documentation", "url": "https://www.reduct.store/docs" },
       { "name": "Homepage", "url": "https://www.reduct.store" },
       { "name": "Issue Tracker", "url": "https://github.com/reductstore/reduct-grafana/issues" },
-      { "name": "Support", "url": "mailto:support@reduct.store" }
+      { "name": "Support", "url": "https://www.reduct.store/contact?subject=SupportRequest" }
     ],
     "screenshots": [
       { "name": "Query Labels", "path": "img/screenshot-query-labels.png" },
