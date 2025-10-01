@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.1.0] - 2025-10-01
+
 ### Added
 
 - Added initial configuration setup to connect to ReductStore [PR-6](https://github.com/reductstore/reduct-grafana/pull/6)
@@ -12,4 +14,3 @@
 ### Fixed
 
 - Fix label type conversion in queries [PR-8](https://github.com/reductstore/reduct-grafana/pull/8)
-§
