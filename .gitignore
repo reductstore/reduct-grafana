@@ -48,5 +48,5 @@ ci/
 data
 .reductstore
 
-# Test scripts
-test-scripts/
+# Private
+private/

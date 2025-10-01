@@ -1,5 +1,5 @@
 import React, { ChangeEvent } from 'react';
-import { InlineField, Input, SecretInput, Switch } from '@grafana/ui';
+import { InlineField, Input, SecretInput, InlineSwitch } from '@grafana/ui';
 import { DataSourcePluginOptionsEditorProps } from '@grafana/data';
 import { ReductSourceOptions, SecureJsonData } from '../types';
 
@@ -84,7 +84,7 @@ export function ConfigEditor(props: Props) {
         />
       </InlineField>
       <InlineField label="Verify SSL" labelWidth={20} tooltip="Enable SSL certificate verification">
-        <Switch id="config-editor-verify-ssl" value={jsonData.verifySSL} onChange={onVerifySSLChange} />
+        <InlineSwitch id="config-editor-verify-ssl" value={jsonData.verifySSL} onChange={onVerifySSLChange} />
       </InlineField>
       <InlineField label="Path" labelWidth={20} tooltip="Optional path prefix">
         <Input

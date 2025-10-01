@@ -8,19 +8,38 @@
   "alerting": true,
   "executable": "gpx_reductstore",
   "info": {
-    "description": "",
+    "description": "ReductStore is a time series data store for robotics and industrial IoT that ingests raw binaries such as logs, JSON, CSV, and MCAP files. It organizes data with time indexes and labels for efficient querying, streaming, and retrieval.",
     "author": {
-      "name": "ReductSoftware UG",
+      "name": "ReductStore",
       "url": "https://www.reduct.store",
       "email": "support@reduct.store"
     },
-    "keywords": ["datasource"],
+    "keywords": [
+      "datasource",
+      "iot",
+      "robotics",
+      "industrial",
+      "time-indexed",
+      "images",
+      "video",
+      "binary",
+      "ros",
+      "elt"
+    ],
     "logos": {
-      "small": "https://www.reduct.store/img/logo.webp",
-      "large": "https://www.reduct.store/img/logo.webp"
+      "small": "img/logo.svg",
+      "large": "img/logo.svg"
     },
-    "links": [],
-    "screenshots": [],
+    "links": [
+      { "name": "Documentation", "url": "https://www.reduct.store/docs" },
+      { "name": "Homepage", "url": "https://www.reduct.store" },
+      { "name": "Issue Tracker", "url": "https://github.com/reductstore/reduct-grafana/issues" },
+      { "name": "Support", "url": "https://www.reduct.store/contact?subject=SupportRequest" }
+    ],
+    "screenshots": [
+      { "name": "Query Labels", "path": "img/screenshot-query-labels.png" },
+      { "name": "Query Content", "path": "img/screenshot-query-content.png" }
+    ],
     "version": "%VERSION%",
     "updated": "%TODAY%"
   },

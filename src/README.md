@@ -1,50 +1,60 @@
-<!-- This README file is going to be the one displayed on the Grafana.com website for your plugin. Uncomment and replace the content here before publishing.
+# ReductStore
 
-Remove any remaining comments before publishing as these may be displayed on Grafana.com -->
+## Overview
 
-# Reductstore
+ReductStore is a time series data store optimized for **robotics** and **industrial IoT** workloads.
+It ingests raw binary data such as **logs, JSON, CSV, and MCAP files** and organizes them with **time indexes and labels** for efficient querying, streaming, and retrieval.
 
-<!-- To help maximize the impact of your README and improve usability for users, we propose the following loose structure:
+This plugin integrates ReductStore as a **data source**, enabling analysis and visualization of unstructured, time-indexed data directly within Grafana.
 
-**BEFORE YOU BEGIN**
-- Ensure all links are absolute URLs so that they will work when the README is displayed within Grafana and Grafana.com
-- Be inspired ✨
-  - [grafana-polystat-panel](https://github.com/grafana/grafana-polystat-panel)
-  - [volkovlabs-variable-panel](https://github.com/volkovlabs/volkovlabs-variable-panel)
+## Features
 
-**ADD SOME BADGES**
-
-Badges convey useful information at a glance for users whether in the Catalog or viewing the source code. You can use the generator on [Shields.io](https://shields.io/badges/dynamic-json-badge) together with the Grafana.com API
-to create dynamic badges that update automatically when you publish a new version to the marketplace.
-
-- For the URL parameter use `https://grafana.com/api/plugins/your-plugin-id`.
-- Example queries:
-  - Downloads: `$.downloads`
-  - Catalog Version: `$.version`
-  - Grafana Dependency: `$.grafanaDependency`
-  - Signature Type: `$.versionSignatureType`
-- Optionally, for the logo parameter use `grafana`.
-
-Full example: ![Dynamic JSON Badge](https://img.shields.io/badge/dynamic/json?logo=grafana&query=$.version&url=https://grafana.com/api/plugins/grafana-polystat-panel&label=Marketplace&prefix=v&color=F47A20)
-
-Consider other [badges](https://shields.io/badges) as you feel appropriate for your project.
-
-## Overview / Introduction
-Provide one or more paragraphs as an introduction to your plugin to help users understand why they should use it.
-
-Consider including screenshots:
-- in [plugin.json](https://grafana.com/developers/plugin-tools/reference/plugin-json#info) include them as relative links.
-- in the README ensure they are absolute URLs.
+* Ingests and queries data in its raw form (logs, JSON, CSV, MCAP).
+* Attach metadata as labels for flexible filtering.
+* Time-indexed storage for efficient temporal queries.
+* Stream data from edge devices to the cloud.
 
 ## Requirements
-List any requirements or dependencies they may need to run the plugin.
+
+* **Grafana**: v10.4.0 or higher
+* **ReductStore**: v1.16 or higher (see [Releases](https://github.com/reductstore/reductstore/releases))
+* Network access to your ReductStore instance
 
 ## Getting Started
-Provide a quick start on how to configure and use the plugin.
+
+1. Install the plugin from Grafana Marketplace or build from source.
+2. Add **ReductStore Data Source** in Grafana’s *Connections → Data Sources* menu.
+3. Configure your ReductStore server URL and authentication.
+4. Start building dashboards with time-indexed queries.
+
+## Screenshots
+
+ReductStore can be queried using time ranges and labels (metadata) to filter data. Each record includes a timestamp and associated content (e.g., logs, JSON, CSV, MCAP) that can be queried and visualized.
+
+For example, you can visualize labels:
+
+![Query Labels](https://raw.githubusercontent.com/reductstore/reduct-grafana/main/src/img/screenshot-query-labels.png)
+
+And you can use ReductStore's extensions to filter and extract specific fields from JSON, CSV, MCAP or logs. Here is an example of querying JSON content:
+
+![Query Content](https://raw.githubusercontent.com/reductstore/reduct-grafana/main/src/img/screenshot-query-content.png)
+
+For more information about querying JSON or CSV content, see the [ReductSelect Extension](https://www.reduct.store/docs/extensions/official/select-ext).
 
 ## Documentation
-If your project has dedicated documentation available for users, provide links here. For help in following Grafana's style recommendations for technical documentation, refer to our [Writer's Toolkit](https://grafana.com/docs/writers-toolkit/).
+
+Official documentation is available at:
+* [ReductStore Documentation](https://www.reduct.store/docs)
+
+For more information about filtering and extracting fields from JSON, CSV or logs, see:
+* [ReductSelect Extension](https://www.reduct.store/docs/extensions/official/select-ext)
+
+For robotics-specific data, see:
+* [ReductROS Extension](https://www.reduct.store/docs/extensions/official/ros-ext)
 
 ## Contributing
-Do you want folks to contribute to the plugin or provide feedback through specific means? If so, tell them how!
--->
+
+We welcome feedback, issues, and contributions!
+
+* Open an issue on [GitHub Issues](https://github.com/reductstore/reduct-grafana/issues)
+* Submit pull requests via [GitHub](https://github.com/reductstore/reduct-grafana)
