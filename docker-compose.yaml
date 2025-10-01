@@ -4,7 +4,7 @@ services:
       file: .config/docker-compose-base.yaml
       service: grafana
   reductstore:
-    image: reduct/store:main
+    image: reduct/store:last
     ports:
       - 8383:8383
     environment:
