@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.1.0] - 2025-10-01
 
 ### Added
 
@@ -12,4 +12,3 @@
 ### Fixed
 
 - Fix label type conversion in queries [PR-8](https://github.com/reductstore/reduct-grafana/pull/8)
-§
