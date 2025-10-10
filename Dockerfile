@@ -1,4 +1,4 @@
-FROM docker.io/ubuntu/grafana:11.6-24.04_stable
+FROM docker.io/ubuntu/grafana:9-22.04
 
 USER root
 
@@ -20,10 +20,6 @@ RUN curl -fsSL "$REDUCT_PLUGIN_URL" -o /tmp/reduct.zip && \
 
 # Allow unsigned (until plugin is signed)
 ENV GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS="reductstore-datasource"
-
-# (Optional) Serve under a sub-path in front of Traefik:
-ENV GF_SERVER_ROOT_URL="/cos-robotics-model-grafana/"
-ENV GF_SERVER_SERVE_FROM_SUB_PATH="true"
 
 # Drop privileges
 USER 472:472
