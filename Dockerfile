@@ -11,9 +11,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN mkdir -p /data/plugins /data/log && \
     chown -R 472:472 /data
 
+# ReductStore plugin version and ID
+ARG TAG=v0.1.1
+ARG PLUGIN_ID=reductstore-datasource
+
 # Install ReductStore plugin into /data/plugins
-ARG REDUCT_PLUGIN_URL="https://github.com/reductstore/reduct-grafana/releases/download/v0.1.0/reductstore-datasource-0.1.0.zip"
-RUN curl -fsSL "$REDUCT_PLUGIN_URL" -o /tmp/reduct.zip && \
+RUN VERSION="${TAG#v}" && \
+    REDUCT_PLUGIN_URL="https://github.com/reductstore/reduct-grafana/releases/download/${TAG}/${PLUGIN_ID}-${VERSION}.zip" && \
+    echo "Installing plugin from ${REDUCT_PLUGIN_URL}" && \
+    curl -fsSL "${REDUCT_PLUGIN_URL}" -o /tmp/reduct.zip && \
     unzip -q /tmp/reduct.zip -d /data/plugins && \
     rm /tmp/reduct.zip && \
     chown -R 472:472 /data/plugins

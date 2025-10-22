@@ -36,8 +36,9 @@ Using Docker:
 
 ```bash
 TAG=v0.1.1
+VERSION="${TAG#v}"
 sudo docker run -d -p 3000:3000 --name=grafana \
-  -e "GF_PLUGINS_PREINSTALL=reductstore-datasource@@https://github.com/reductstore/reduct-grafana/releases/download/${TAG}/reductstore-datasource-${TAG}.zip" \
+  -e "GF_PLUGINS_PREINSTALL=reductstore-datasource@@https://github.com/reductstore/reduct-grafana/releases/download/${TAG}/reductstore-datasource-${VERSION}.zip" \
   -e "GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=reductstore-datasource" \
   ubuntu/grafana:11.6-24.04_stable
 ```
@@ -45,19 +46,19 @@ sudo docker run -d -p 3000:3000 --name=grafana \
 Or build the Docker image yourself:
 
 ```bash
-docker build --no-cache -t ghcr.io/reductstore/grafana:dev .
+docker build -t ghcr.io/reductstore/grafana:${TAG} --build-arg TAG=${TAG} .
 ```
 
 Push to GitHub registry:
 
 ```bash
-docker push ghcr.io/reductstore/grafana:dev
+docker push ghcr.io/reductstore/grafana:${TAG}
 ```
 
 Test locally:
 
 ```bash
-docker run --rm -p 3000:3000 --name grafana-test ghcr.io/reductstore/grafana:dev
+docker run --rm -p 3000:3000 --name grafana-test ghcr.io/reductstore/grafana:${TAG}
 ```
 
 Check installed plugins:
