@@ -2,7 +2,35 @@
 
 Data Source Grafana Plugin for ReductStore
 
-## Installation
+## 🧑‍💻 Development
+
+### Frontend
+
+Start the frontend development server:
+
+```bash
+npm run dev
+```
+
+### Backend / Build (Mage)
+
+Build the plugin for Linux:
+
+```bash
+mage -v build:linux
+```
+
+### Testing with Other Grafana Versions
+
+To test your plugin against a specific Grafana version, run:
+
+```bash
+GRAFANA_VERSION=9.5.16 docker compose up --build
+```
+
+You can replace `9.5.16` with any other Grafana version as needed.
+
+## 🚀 Running Grafana with ReductStore Plugin
 
 Using Docker:
 
@@ -26,6 +54,7 @@ docker push ghcr.io/reductstore/grafana:dev
 ```
 
 Test locally:
+
 ```bash
 docker run --rm -p 3000:3000 --name grafana-test ghcr.io/reductstore/grafana:dev
 ```
