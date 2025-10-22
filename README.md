@@ -35,8 +35,10 @@ You can replace `9.5.16` with any other Grafana version as needed.
 Using Docker:
 
 ```bash
+# variable with tag name v0.1.1 or latest
+TAG=v0.1.1
 sudo docker run -d -p 3000:3000 --name=grafana \
-  -e "GF_PLUGINS_PREINSTALL=reductstore-datasource@@https://github.com/reductstore/reduct-grafana/releases/download/v0.1.0/reductstore-datasource-0.1.0.zip" \
+  -e "GF_PLUGINS_PREINSTALL=reductstore-datasource@@https://github.com/reductstore/reduct-grafana/releases/download/${TAG}/reductstore-datasource-${TAG}.zip" \
   -e "GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=reductstore-datasource" \
   ubuntu/grafana:11.6-24.04_stable
 ```
