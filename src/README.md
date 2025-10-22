@@ -9,21 +9,21 @@ This plugin integrates ReductStore as a **data source**, enabling analysis and v
 
 ## Features
 
-* Ingests and queries data in its raw form (logs, JSON, CSV, MCAP).
-* Attach metadata as labels for flexible filtering.
-* Time-indexed storage for efficient temporal queries.
-* Stream data from edge devices to the cloud.
+- Ingests and queries data in its raw form (logs, JSON, CSV, MCAP).
+- Attach metadata as labels for flexible filtering.
+- Time-indexed storage for efficient temporal queries.
+- Stream data from edge devices to the cloud.
 
 ## Requirements
 
-* **Grafana**: v10.4.0 or higher
-* **ReductStore**: v1.16 or higher (see [Releases](https://github.com/reductstore/reductstore/releases))
-* Network access to your ReductStore instance
+- **Grafana**: v10.4.0 or higher
+- **ReductStore**: v1.16 or higher (see [Releases](https://github.com/reductstore/reductstore/releases))
+- Network access to your ReductStore instance
 
 ## Getting Started
 
 1. Install the plugin from Grafana Marketplace or build from source.
-2. Add **ReductStore Data Source** in Grafana’s *Connections → Data Sources* menu.
+2. Add **ReductStore Data Source** in Grafana’s _Connections → Data Sources_ menu.
 3. Configure your ReductStore server URL and authentication.
 4. Start building dashboards with time-indexed queries.
 
@@ -44,17 +44,20 @@ For more information about querying JSON or CSV content, see the [ReductSelect E
 ## Documentation
 
 Official documentation is available at:
-* [ReductStore Documentation](https://www.reduct.store/docs)
+
+- [ReductStore Documentation](https://www.reduct.store/docs)
 
 For more information about filtering and extracting fields from JSON, CSV or logs, see:
-* [ReductSelect Extension](https://www.reduct.store/docs/extensions/official/select-ext)
+
+- [ReductSelect Extension](https://www.reduct.store/docs/extensions/official/select-ext)
 
 For robotics-specific data, see:
-* [ReductROS Extension](https://www.reduct.store/docs/extensions/official/ros-ext)
+
+- [ReductROS Extension](https://www.reduct.store/docs/extensions/official/ros-ext)
 
 ## Contributing
 
 We welcome feedback, issues, and contributions!
 
-* Open an issue on [GitHub Issues](https://github.com/reductstore/reduct-grafana/issues)
-* Submit pull requests via [GitHub](https://github.com/reductstore/reduct-grafana)
+- Open an issue on [GitHub Issues](https://github.com/reductstore/reduct-grafana/issues)
+- Submit pull requests via [GitHub](https://github.com/reductstore/reduct-grafana)

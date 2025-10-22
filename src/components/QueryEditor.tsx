@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Combobox, ComboboxOption, InlineField, InlineFieldRow, useTheme2 } from '@grafana/ui';
+import { Alert, InlineField, InlineFieldRow, useTheme2 } from '@grafana/ui';
 import { getBackendSrv } from '@grafana/runtime';
 import { QueryEditorProps, SelectableValue } from '@grafana/data';
 import { DataMode, ReductQuery, ReductSourceOptions } from '../types';
 import { DataSource } from '../datasource';
+import { CompatiblePicker } from './CompatiblePicker';
 import { parseJson, stringifyJson } from '../utils/json';
 import { Controlled as CodeMirror } from 'react-codemirror2';
+import { css } from '@emotion/css';
 import 'codemirror/lib/codemirror.css';
 import 'codemirror/theme/dracula.css';
 import 'codemirror/mode/javascript/javascript';
@@ -14,9 +16,9 @@ import 'codemirror/addon/edit/matchbrackets';
 type Props = QueryEditorProps<DataSource, ReductQuery, ReductSourceOptions>;
 
 export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) {
-  const [buckets, setBuckets] = useState<Array<ComboboxOption<string>>>([]);
+  const [buckets, setBuckets] = useState<Array<SelectableValue<string>>>([]);
   const [bucket, setBucket] = useState<string | undefined>(query.bucket);
-  const [entries, setEntries] = useState<Array<ComboboxOption<string>>>([]);
+  const [entries, setEntries] = useState<Array<SelectableValue<string>>>([]);
   const [entry, setEntry] = useState<string | undefined>(query.entry);
   const [mode, setMode] = useState<DataMode>(query.options?.mode ?? DataMode.Labels);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -26,11 +28,17 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
   const [editorWhen, setEditorWhen] = useState<string>(initialWhen);
 
   const theme = useTheme2();
-  const modeOptions: Array<ComboboxOption<DataMode>> = [
+  const modeOptions: Array<SelectableValue<DataMode>> = [
     { label: 'Labels only', value: DataMode.Labels },
     { label: 'Content only', value: DataMode.Content },
     { label: 'Labels + Content', value: DataMode.Both },
   ];
+
+  const getCodeMirrorStyles = () => css`
+    .CodeMirror {
+      max-height: 200px;
+    }
+  `;
 
   // Fetch bucket list on component mounts
   useEffect(() => {
@@ -93,7 +101,7 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
     setEntry(newEntry);
   };
 
-  const onModeChange = (opt: ComboboxOption<DataMode> | null) => {
+  const onModeChange = (opt: SelectableValue<DataMode>) => {
     const newMode = opt?.value ?? DataMode.Labels;
     setMode(newMode);
   };
@@ -127,11 +135,15 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
 
       <InlineFieldRow>
         <InlineField label="Bucket" grow>
-          <Combobox placeholder="Select bucket" options={buckets} value={bucket} onChange={onBucketChange} />
+          <CompatiblePicker
+            options={buckets}
+            value={buckets.find((b) => b.value === bucket)}
+            onChange={onBucketChange}
+          />
         </InlineField>
 
         <InlineField label="Entry" grow>
-          <Combobox placeholder="Select entry" options={entries} value={entry} onChange={onEntryChange} />
+          <CompatiblePicker options={entries} value={entries.find((e) => e.value === entry)} onChange={onEntryChange} />
         </InlineField>
 
         <InlineField
@@ -139,28 +151,33 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
           tooltip="Controls what the query returns: labels (metadata), content (payload), or both."
           grow
         >
-          <Combobox placeholder="Select scope" options={modeOptions} value={mode} onChange={onModeChange} />
+          <CompatiblePicker
+            options={modeOptions}
+            value={modeOptions.find((m) => m.value === mode)}
+            onChange={onModeChange}
+          />
         </InlineField>
       </InlineFieldRow>
 
       <InlineField label="When" grow>
-        <CodeMirror
-          className="jsonEditor"
-          value={editorWhen}
-          options={{
-            mode: { name: 'javascript', json: true },
-            theme: theme.isDark ? 'dracula' : 'default',
-            lineNumbers: true,
-            lineWrapping: true,
-            viewportMargin: Infinity,
-            matchBrackets: true,
-            readOnly: false,
-            indentUnit: 2,
-            tabSize: 2,
-          }}
-          onBeforeChange={(_, __, value: string) => setEditorWhen(value)}
-          onBlur={(editor: any) => onWhenBlur(editor)}
-        />
+        <div className={getCodeMirrorStyles()}>
+          <CodeMirror
+            value={editorWhen}
+            options={{
+              mode: { name: 'javascript', json: true },
+              theme: theme.isDark ? 'dracula' : 'default',
+              lineNumbers: true,
+              lineWrapping: true,
+              viewportMargin: Infinity,
+              matchBrackets: true,
+              readOnly: false,
+              indentUnit: 2,
+              tabSize: 2,
+            }}
+            onBeforeChange={(_, __, value: string) => setEditorWhen(value)}
+            onBlur={(editor: any) => onWhenBlur(editor)}
+          />
+        </div>
       </InlineField>
     </>
   );

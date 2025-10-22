@@ -48,5 +48,7 @@ ci/
 data
 .reductstore
 
-# Private
+# Private & environment files
 private/
+.env
+.venv

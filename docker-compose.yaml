@@ -10,5 +10,6 @@ services:
     environment:
       - RS_API_TOKEN=${RS_API_TOKEN}
       - RS_LICENSE_PATH=/data/reduct.lic
+      - RS_CORS_ALLOW_ORIGIN=*
     volumes:
       - ./.reductstore:/data
