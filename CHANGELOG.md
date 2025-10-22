@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## [0.1.1] - 2025-10-22
+
+### Fixed
+
 - Fix compatibility issue on older Grafana versions without Combobox, [PR-18](https://github.com/reductstore/reduct-grafana/pull/18)
 
 ## [0.1.0] - 2025-10-01
