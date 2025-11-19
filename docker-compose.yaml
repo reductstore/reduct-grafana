@@ -9,7 +9,7 @@ services:
       - 8383:8383
     environment:
       - RS_API_TOKEN=${RS_API_TOKEN}
-      - RS_LICENSE_PATH=/data/reduct.lic
+      - RS_LICENSE_PATH=~/data/reduct.lic
       - RS_CORS_ALLOW_ORIGIN=*
     volumes:
       - ./.reductstore:/data

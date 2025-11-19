@@ -1,17 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, InlineField, InlineFieldRow, useTheme2 } from '@grafana/ui';
+import { Alert, InlineField, InlineFieldRow } from '@grafana/ui';
 import { getBackendSrv } from '@grafana/runtime';
 import { QueryEditorProps, SelectableValue } from '@grafana/data';
 import { DataMode, ReductQuery, ReductSourceOptions } from '../types';
 import { DataSource } from '../datasource';
 import { CompatiblePicker } from './CompatiblePicker';
+import { CodeEditor } from './CodeEditor';
 import { parseJson, stringifyJson } from '../utils/json';
-import { Controlled as CodeMirror } from 'react-codemirror2';
-import { css } from '@emotion/css';
-import 'codemirror/lib/codemirror.css';
-import 'codemirror/theme/dracula.css';
-import 'codemirror/mode/javascript/javascript';
-import 'codemirror/addon/edit/matchbrackets';
 
 type Props = QueryEditorProps<DataSource, ReductQuery, ReductSourceOptions>;
 
@@ -27,18 +22,11 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
   const [when, setWhen] = useState<string>(initialWhen);
   const [editorWhen, setEditorWhen] = useState<string>(initialWhen);
 
-  const theme = useTheme2();
   const modeOptions: Array<SelectableValue<DataMode>> = [
     { label: 'Labels only', value: DataMode.Labels },
     { label: 'Content only', value: DataMode.Content },
     { label: 'Labels + Content', value: DataMode.Both },
   ];
-
-  const getCodeMirrorStyles = () => css`
-    .CodeMirror {
-      max-height: 200px;
-    }
-  `;
 
   // Fetch bucket list on component mounts
   useEffect(() => {
@@ -106,27 +94,19 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
     setMode(newMode);
   };
 
-  const onWhenBlur = (editor: any) => {
-    const value = editor.getValue().trim();
-    if (value === '') {
-      setEditorWhen('{}');
-      if (when !== '{}') {
-        setWhen('{}');
-      }
-      setErrorMessage(null);
-      return;
+  const handleWhenChange = (value: string) => {
+    setEditorWhen(value);
+  };
+
+  const handleWhenBlur = (value: string) => {
+    setEditorWhen(value);
+    if (when !== value) {
+      setWhen(value);
     }
-    try {
-      const parsed = parseJson(value);
-      const pretty = stringifyJson(parsed);
-      setEditorWhen(pretty);
-      if (when !== pretty) {
-        setWhen(pretty);
-      }
-      setErrorMessage(null);
-    } catch (err: any) {
-      setErrorMessage(err.message);
-    }
+  };
+
+  const handleWhenError = (error: string) => {
+    setErrorMessage(error || null);
   };
 
   return (
@@ -160,24 +140,13 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
       </InlineFieldRow>
 
       <InlineField label="When" grow>
-        <div className={getCodeMirrorStyles()}>
-          <CodeMirror
-            value={editorWhen}
-            options={{
-              mode: { name: 'javascript', json: true },
-              theme: theme.isDark ? 'dracula' : 'default',
-              lineNumbers: true,
-              lineWrapping: true,
-              viewportMargin: Infinity,
-              matchBrackets: true,
-              readOnly: false,
-              indentUnit: 2,
-              tabSize: 2,
-            }}
-            onBeforeChange={(_, __, value: string) => setEditorWhen(value)}
-            onBlur={(editor: any) => onWhenBlur(editor)}
-          />
-        </div>
+        <CodeEditor
+          value={editorWhen}
+          onChange={handleWhenChange}
+          onBlur={handleWhenBlur}
+          onError={handleWhenError}
+          placeholder="{}"
+        />
       </InlineField>
     </>
   );
