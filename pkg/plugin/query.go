@@ -72,7 +72,7 @@ func (d *ReductDatasource) QueryData(ctx context.Context, req *backend.QueryData
 		}
 
 		options := reductgo.NewQueryOptionsBuilder().WithWhen(when)
-		if mode == ModeLabels {
+		if mode == ModeLabelOnly {
 			options.WithHead(true)
 		} else {
 			options.WithHead(false)
@@ -127,10 +127,10 @@ func getFrames(records <-chan *reductgo.ReadableRecord, mode ReductMode) []*data
 	labelKinds := make(map[string]reflect.Kind)
 
 	for record := range records {
-		if mode == "" || mode == ModeLabels || mode == ModeBoth {
+		if mode == "" || mode == ModeLabelOnly || mode == ModeLabelAndContent {
 			processLabels(frames, labelKinds, record)
 		}
-		if mode == ModeContent || mode == ModeBoth {
+		if mode == ModeContentOnly || mode == ModeLabelAndContent {
 			processContent(frames, record)
 		}
 	}

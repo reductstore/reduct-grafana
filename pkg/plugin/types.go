@@ -3,9 +3,9 @@ package plugin
 type ReductMode string
 
 const (
-	ModeLabels  ReductMode = "labels"
-	ModeContent ReductMode = "content"
-	ModeBoth    ReductMode = "both"
+	ModeLabelOnly       ReductMode = "LabelOnly"
+	ModeContentOnly     ReductMode = "ContentOnly"
+	ModeLabelAndContent ReductMode = "LabelAndContent"
 )
 
 type reductOptions struct {

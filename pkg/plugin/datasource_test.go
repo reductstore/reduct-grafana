@@ -144,7 +144,7 @@ func TestQueryDataWithThen(t *testing.T) {
 						"Entry": "entity1",
 						"Options": {
 							"When": { "#select_labels": ["int-label"]},
-							"Mode": "labels"
+							"Mode": "LabelOnly"
 						}
 					}`)
 	defer teardown(t)
@@ -212,7 +212,7 @@ func TestQueryData_ContentMode_ParsesJSON(t *testing.T) {
 	resp, teardown := runQuery(t, `{
 		"Bucket": "test-bucket",
 		"Entry": "entity1",
-		"Options": { "Mode": "content" }
+		"Options": { "Mode": "ContentOnly" }
 	}`)
 	defer teardown(t)
 
@@ -246,7 +246,7 @@ func TestQueryData_BothMode_LabelsAndJSON(t *testing.T) {
 	resp, teardown := runQuery(t, `{
 		"Bucket": "test-bucket",
 		"Entry": "entity1",
-		"Options": { "Mode": "both" }
+		"Options": { "Mode": "LabelAndContent" }
 	}`)
 	defer teardown(t)
 
@@ -273,7 +273,7 @@ func TestQueryData_LabelsMode_IgnoresJSON(t *testing.T) {
 	resp, teardown := runQuery(t, `{
 		"Bucket": "test-bucket",
 		"Entry": "entity1",
-		"Options": { "Mode": "labels" }
+		"Options": { "Mode": "LabelOnly" }
 	}`)
 	defer teardown(t)
 
@@ -297,7 +297,7 @@ func TestQueryData_ContentMode_PreservesJSONStringTypes(t *testing.T) {
 	resp, teardown := runQuery(t, `{
 		"Bucket": "test-bucket",
 		"Entry": "entity1",
-		"Options": { "Mode": "content" }
+		"Options": { "Mode": "ContentOnly" }
 	}`)
 	defer teardown(t)
 
