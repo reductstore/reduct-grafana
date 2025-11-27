@@ -11,3 +11,4 @@ datasources:
     jsonData:
       serverURL: 'http://reductstore:8383'
     secureJsonData:
+      serverToken: 'dev-token'
