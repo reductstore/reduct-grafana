@@ -43,7 +43,9 @@ export function JsonToolbox({ query, formatCode, onExpand, isExpanded, datasourc
     setMissingBucket(isBucketMissing);
     setMissingEntry(isEntryMissing);
 
-    if (isBucketMissing || isEntryMissing) return;
+    if (isBucketMissing || isEntryMissing) {
+      return;
+    }
 
     if (when === undefined || when === null) {
       setStatus(ValidationStatus.Valid);
