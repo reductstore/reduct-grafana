@@ -38,14 +38,18 @@ export function QueryHeader({ query, datasource, onRunQuery }: QueryHeaderProps)
   }, [datasource.id]);
 
   const formatBytes = (bytes?: number): string => {
-    if (!bytes) return 'N/A';
+    if (!bytes) {
+      return 'N/A';
+    }
     const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
     const i = Math.floor(Math.log(bytes) / Math.log(1000));
     return Math.round(bytes / Math.pow(1000, i)) + ' ' + sizes[i];
   };
 
   const formatDate = (timestamp?: number): string => {
-    if (!timestamp || timestamp === 0) return 'N/A';
+    if (!timestamp || timestamp === 0) {
+      return 'N/A';
+    }
     const date = new Date(timestamp / 1000);
 
     if (isNaN(date.getTime())) {
