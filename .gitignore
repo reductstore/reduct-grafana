@@ -52,3 +52,6 @@ data
 private/
 .env
 .venv
+
+# Development tools
+bra.toml

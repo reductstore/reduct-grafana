@@ -1,7 +1,7 @@
 services:
   grafana:
     user: root
-    container_name: 'reductstore-datasource'
+    container_name: reductstore-datasource
 
     build:
       context: .

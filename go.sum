@@ -194,8 +194,6 @@ github.com/prometheus/common v0.63.0 h1:YR/EIY1o3mEFP/kZCD7iDMnLPlGyuU2Gb3HIcXnA
 github.com/prometheus/common v0.63.0/go.mod h1:VVFF/fBIoToEnWRVkYoXEkq3R3paCoxG9PXP74SnV18=
 github.com/prometheus/procfs v0.15.1 h1:YagwOFzUgYfKKHX6Dr+sHT7km/hxC76UB0learggepc=
 github.com/prometheus/procfs v0.15.1/go.mod h1:fB45yRUv8NstnjriLhBQLuOUt+WW4BsoGhij/e3PBqk=
-github.com/reductstore/reduct-go v1.15.1 h1:cjAd7AVpVhODFqAfYCDTzJmZge93GNevOMmSjVJQXuo=
-github.com/reductstore/reduct-go v1.15.1/go.mod h1:vvASsjgTErSdCDKR0KkEvUOKoMbjmPp7dX5+JBrlXd0=
 github.com/reductstore/reduct-go v1.16.1 h1:iv5tkAvaN9C//NZJgJl6RFAuVKbUrzT2+kD9lRdNMbc=
 github.com/reductstore/reduct-go v1.16.1/go.mod h1:vvASsjgTErSdCDKR0KkEvUOKoMbjmPp7dX5+JBrlXd0=
 github.com/rivo/uniseg v0.2.0/go.mod h1:J6wj4VEh+S6ZtnVlnTBMWIodfgj8LQOQFoIToxlJtxc=
