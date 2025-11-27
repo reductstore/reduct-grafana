@@ -60,22 +60,19 @@ export function JsonEditorCore({ onChange, query, width, height, children }: Pro
 
   const onEditorDidMount = (editor: MonacoEditor, monaco: Monaco) => {
     if (!registeredRef.current) {
-      // Disable default JSON completions more aggressively
       monaco.languages.json.jsonDefaults.setDiagnosticsOptions({
-        validate: false, // Disable validation to prevent schema suggestions
+        validate: false,
         allowComments: false,
         schemas: [],
         enableSchemaRequest: false,
       });
-
-      // Configure JSON language to be less intrusive
       monaco.languages.json.jsonDefaults.setModeConfiguration({
         documentFormattingEdits: false,
         documentRangeFormattingEdits: false,
-        completionItems: false, // Disable default JSON completions
+        completionItems: false,
         hovers: false,
         documentSymbols: false,
-        tokens: true, // Keep syntax highlighting
+        tokens: true,
         colors: true,
         foldingRanges: true,
         diagnostics: false,

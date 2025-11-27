@@ -23,7 +23,7 @@ export function QueryHeader({ query, datasource, onRunQuery }: QueryHeaderProps)
     setLoading(true);
     getBackendSrv()
       .get(`/api/datasources/${datasource.id}/resources/serverInfo`, undefined, undefined, {
-        showErrorAlert: false, // Suppress automatic error notifications
+        showErrorAlert: false,
       })
       .then((info: ServerInfo) => {
         setServerInfo(info);
