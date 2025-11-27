@@ -1,136 +1,132 @@
-import React, { useEffect, useState } from 'react';
-import { Alert, InlineField, InlineFieldRow } from '@grafana/ui';
+import React, { useEffect, useState, useCallback } from 'react';
+import { InlineField, InlineFieldRow } from '@grafana/ui';
 import { getBackendSrv } from '@grafana/runtime';
 import { QueryEditorProps, SelectableValue } from '@grafana/data';
 import { DataMode, ReductQuery, ReductSourceOptions } from '../types';
 import { DataSource } from '../datasource';
 import { CompatiblePicker } from './CompatiblePicker';
-import { CodeEditor } from './CodeEditor';
-import { parseJson, stringifyJson } from '../utils/json';
+import { JsonEditor } from './json-editor/JsonEditor';
+import { QueryHeader } from './QueryHeader';
 
 type Props = QueryEditorProps<DataSource, ReductQuery, ReductSourceOptions>;
 
 export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) {
   const [buckets, setBuckets] = useState<Array<SelectableValue<string>>>([]);
-  const [bucket, setBucket] = useState<string | undefined>(query.bucket);
   const [entries, setEntries] = useState<Array<SelectableValue<string>>>([]);
-  const [entry, setEntry] = useState<string | undefined>(query.entry);
-  const [mode, setMode] = useState<DataMode>(query.options?.mode ?? DataMode.Labels);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const initialWhen = query.options?.when ? stringifyJson(query.options.when) : '{}';
-  const [when, setWhen] = useState<string>(initialWhen);
-  const [editorWhen, setEditorWhen] = useState<string>(initialWhen);
+  const bucket = query.bucket;
+  const entry = query.entry;
+  const mode = query.options?.mode ?? DataMode.LabelOnly;
 
   const modeOptions: Array<SelectableValue<DataMode>> = [
-    { label: 'Labels only', value: DataMode.Labels },
-    { label: 'Content only', value: DataMode.Content },
-    { label: 'Labels + Content', value: DataMode.Both },
+    { label: 'Label Only', value: DataMode.LabelOnly },
+    { label: 'Content Only', value: DataMode.ContentOnly },
+    { label: 'Label & Content', value: DataMode.LabelAndContent },
   ];
 
-  // Fetch bucket list on component mounts
+  // Load list of buckets
   useEffect(() => {
     getBackendSrv()
-      .get(`/api/datasources/${datasource.id}/resources/listBuckets`)
+      .get(`/api/datasources/${datasource.id}/resources/listBuckets`, undefined, undefined, {
+        showErrorAlert: false,
+      })
       .then((res) => {
-        const options = res.map((b: any) => ({
-          label: b.name,
-          value: b.name,
-        }));
-        setBuckets(options);
+        setBuckets(res.map((b: any) => ({ label: b.name, value: b.name })));
+      })
+      .catch((error) => {
+        console.warn('Failed to load buckets:', error);
+        setBuckets([]);
       });
   }, [datasource.id]);
 
-  // Fetch entry list when a bucket is selected
+  // Load entries when bucket changes
   useEffect(() => {
-    if (!query.bucket) {
+    if (!bucket) {
+      setEntries([]);
       return;
     }
 
     getBackendSrv()
-      .post(`/api/datasources/${datasource.id}/resources/listEntries`, { bucket: query.bucket })
+      .post(
+        `/api/datasources/${datasource.id}/resources/listEntries`,
+        { bucket },
+        {
+          showErrorAlert: false,
+        }
+      )
       .then((res) => {
-        const entryOptions = res.map((e: any) => ({
-          label: e.name,
-          value: e.name,
-        }));
-        setEntries(entryOptions);
+        setEntries(res.map((e: any) => ({ label: e.name, value: e.name })));
+      })
+      .catch((error) => {
+        console.warn('Failed to load entries:', error);
+        setEntries([]);
       });
-  }, [query.bucket, datasource.id]);
+  }, [bucket, datasource.id]);
 
-  // Control onChange and onRunQuery calls
-  useEffect(() => {
-    try {
-      const whenObj = when.trim() === '' ? {} : parseJson(when);
+  // Helper to trigger Grafana update + run query when valid
+  const updateQuery = useCallback(
+    (newBucket: string | undefined, newEntry: string | undefined, newMode: DataMode) => {
       onChange({
         ...query,
-        bucket: bucket,
-        entry: entry,
-        options: { ...(query.options ?? {}), mode: mode, when: whenObj },
+        bucket: newBucket,
+        entry: newEntry,
+        options: { ...(query.options ?? {}), mode: newMode },
       });
-      if (bucket && entry && !errorMessage) {
+
+      if (newBucket && newEntry) {
         onRunQuery();
       }
-      setErrorMessage(null);
-    } catch (err: any) {
-      setErrorMessage(err.message);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bucket, entry, mode, when]);
+    },
+    [query, onChange, onRunQuery]
+  );
 
-  const onBucketChange = (v?: SelectableValue<string>) => {
-    const newBucket = v?.value;
-    setBucket(newBucket);
-    setEntry(undefined);
-  };
+  const onBucketChange = useCallback(
+    (v?: SelectableValue<string>) => {
+      updateQuery(v?.value, undefined, mode);
+    },
+    [mode, updateQuery]
+  );
 
-  const onEntryChange = (v?: SelectableValue<string>) => {
-    const newEntry = v?.value;
-    setEntry(newEntry);
-  };
+  const onEntryChange = useCallback(
+    (v?: SelectableValue<string>) => {
+      updateQuery(bucket, v?.value, mode);
+    },
+    [bucket, mode, updateQuery]
+  );
 
-  const onModeChange = (opt: SelectableValue<DataMode>) => {
-    const newMode = opt?.value ?? DataMode.Labels;
-    setMode(newMode);
-  };
+  const onModeChange = useCallback(
+    (opt: SelectableValue<DataMode>) => {
+      updateQuery(bucket, entry, opt?.value ?? DataMode.LabelOnly);
+    },
+    [bucket, entry, updateQuery]
+  );
 
-  const handleWhenChange = (value: string) => {
-    setEditorWhen(value);
-  };
-
-  const handleWhenBlur = (value: string) => {
-    setEditorWhen(value);
-    if (when !== value) {
-      setWhen(value);
-    }
-  };
-
-  const handleWhenError = (error: string) => {
-    setErrorMessage(error || null);
-  };
+  // Handle changes from JSON editor
+  const handleEditorChange = useCallback(
+    (newQuery: ReductQuery, process: boolean) => {
+      onChange(newQuery);
+      if (process && newQuery.bucket && newQuery.entry) {
+        onRunQuery();
+      }
+    },
+    [onChange, onRunQuery]
+  );
 
   return (
     <>
-      {errorMessage && <Alert title="Error: ">{errorMessage}</Alert>}
-
+      <QueryHeader query={query} datasource={datasource} onRunQuery={onRunQuery} />
       <InlineFieldRow>
-        <InlineField label="Bucket" grow>
+        <InlineField label="Bucket" tooltip="The bucket to query from" grow>
           <CompatiblePicker
             options={buckets}
             value={buckets.find((b) => b.value === bucket)}
             onChange={onBucketChange}
           />
         </InlineField>
-
-        <InlineField label="Entry" grow>
+        <InlineField label="Entry" tooltip="The entry within the bucket to query" grow>
           <CompatiblePicker options={entries} value={entries.find((e) => e.value === entry)} onChange={onEntryChange} />
         </InlineField>
-
-        <InlineField
-          label="Scope"
-          tooltip="Controls what the query returns: labels (metadata), content (payload), or both."
-          grow
-        >
+        <InlineField label="Scope" tooltip="Controls what the query returns: labels only, content only, or both" grow>
           <CompatiblePicker
             options={modeOptions}
             value={modeOptions.find((m) => m.value === mode)}
@@ -138,16 +134,11 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
           />
         </InlineField>
       </InlineFieldRow>
-
-      <InlineField label="When" grow>
-        <CodeEditor
-          value={editorWhen}
-          onChange={handleWhenChange}
-          onBlur={handleWhenBlur}
-          onError={handleWhenError}
-          placeholder="{}"
-        />
-      </InlineField>
+      <InlineFieldRow>
+        <InlineField grow>
+          <JsonEditor query={query} onChange={handleEditorChange} datasource={datasource} />
+        </InlineField>
+      </InlineFieldRow>
     </>
   );
 }
