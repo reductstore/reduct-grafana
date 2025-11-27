@@ -4,21 +4,34 @@ Data Source Grafana Plugin for ReductStore
 
 ## 🧑‍💻 Development
 
-### Frontend
+### Frontend Development
 
-Start the frontend development server:
+Start the frontend development server with hot reload:
 
 ```bash
 npm run dev
 ```
 
-### Backend / Build (Mage)
+This builds the frontend with sourcemaps and watches for changes.
 
-Build the plugin for Linux:
+### Backend Development & Debugging
+
+Build the backend:
 
 ```bash
-mage -v build:linux
+mage build:backend
 ```
+
+Start the development environment with debugging:
+
+```bash
+DEVELOPMENT=true docker compose up --build
+```
+
+This starts:
+- Grafana with the plugin installed
+- ReductStore database
+- Go backend with debugger attached to port `2345`
 
 ### Testing with Other Grafana Versions
 
