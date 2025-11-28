@@ -52,6 +52,7 @@ test.describe('ReductStore JSON Toolbox', () => {
   test('shows missing bucket/entry validation messages', async ({ panelEditPage, readProvisionedDataSource, page }) => {
     const ds = await readProvisionedDataSource({ fileName: 'datasources.yml' });
     await panelEditPage.datasource.set(ds.name);
+    await page.getByRole('button', { name: /format query/i }).waitFor();
     await expect(page.getByText(/select bucket and entry/i)).toBeVisible();
   });
 

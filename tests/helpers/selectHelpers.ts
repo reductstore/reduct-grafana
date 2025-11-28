@@ -7,7 +7,7 @@ export function picker(page: Page, label: string) {
 export async function clickOption(page: Page, testId: string, label: string) {
   const byTestId = page.getByTestId(testId);
 
-  if (await byTestId.count()) {
+  if (await byTestId.count() > 0) {
     await byTestId.first().click();
     return;
   }
