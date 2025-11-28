@@ -25,8 +25,8 @@ export function JsonEditorCore({ onChange, query, width, height, children }: Pro
     typeof query.options?.when === 'string'
       ? query.options.when
       : query.options?.when
-        ? JSON.stringify(query.options.when, null, 2)
-        : '';
+      ? JSON.stringify(query.options.when, null, 2)
+      : '';
 
   const handleEditorChange = (value: string) => {
     const trimmedValue = value.trim();

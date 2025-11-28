@@ -14,11 +14,7 @@ interface JsonEditorProps {
   datasource: DataSource;
 }
 
-export function JsonEditor({
-  query,
-  onChange,
-  datasource,
-}: JsonEditorProps) {
+export function JsonEditor({ query, onChange, datasource }: JsonEditorProps) {
   const theme = useTheme2();
   const styles = useStyles2(getStyles);
 

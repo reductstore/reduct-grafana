@@ -29,6 +29,7 @@ DEVELOPMENT=true docker compose up --build
 ```
 
 This starts:
+
 - Grafana with the plugin installed
 - ReductStore database
 - Go backend with debugger attached to port `2345`

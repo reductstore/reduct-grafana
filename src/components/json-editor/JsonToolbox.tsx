@@ -9,7 +9,7 @@ import { useDebounce } from 'react-use';
 enum ValidationStatus {
   Loading = 'loading',
   Valid = 'valid',
-  Invalid = 'invalid'
+  Invalid = 'invalid',
 }
 
 interface JsonToolboxProps {
@@ -36,62 +36,64 @@ export function JsonToolbox({ query, formatCode, onExpand, isExpanded, datasourc
     setWhen(query.options?.when);
   }, [query.options?.when]);
 
-  useDebounce(() => {
-    const isBucketMissing = !query.bucket;
-    const isEntryMissing = !query.entry;
+  useDebounce(
+    () => {
+      const isBucketMissing = !query.bucket;
+      const isEntryMissing = !query.entry;
 
-    setMissingBucket(isBucketMissing);
-    setMissingEntry(isEntryMissing);
+      setMissingBucket(isBucketMissing);
+      setMissingEntry(isEntryMissing);
 
-    if (isBucketMissing || isEntryMissing) {
-      return;
-    }
+      if (isBucketMissing || isEntryMissing) {
+        return;
+      }
 
-    if (when === undefined || when === null) {
-      setStatus(ValidationStatus.Valid);
+      if (when === undefined || when === null) {
+        setStatus(ValidationStatus.Valid);
+        setError(undefined);
+        return;
+      }
+
+      setStatus(ValidationStatus.Loading);
       setError(undefined);
-      return;
-    }
 
-    setStatus(ValidationStatus.Loading);
-    setError(undefined);
-
-    // If JSON is valid, proceed with backend validation
-    getBackendSrv()
-      .post(`/api/datasources/${datasourceId}/resources/validateCondition`, {
-        bucket: query.bucket,
-        entry: query.entry,
-        condition: when,
-      }, {
-        showErrorAlert: false
-      })
-      .then((response: { valid: boolean; error?: string }) => {
-        if (response.valid) {
-          setStatus(ValidationStatus.Valid);
-          setError(undefined);
-        } else {
+      // If JSON is valid, proceed with backend validation
+      getBackendSrv()
+        .post(
+          `/api/datasources/${datasourceId}/resources/validateCondition`,
+          {
+            bucket: query.bucket,
+            entry: query.entry,
+            condition: when,
+          },
+          {
+            showErrorAlert: false,
+          }
+        )
+        .then((response: { valid: boolean; error?: string }) => {
+          if (response.valid) {
+            setStatus(ValidationStatus.Valid);
+            setError(undefined);
+          } else {
+            setStatus(ValidationStatus.Invalid);
+            setError(response.error || 'Invalid condition');
+          }
+        })
+        .catch((err: any) => {
           setStatus(ValidationStatus.Invalid);
-          setError(response.error || 'Invalid condition');
-        }
-      })
-      .catch((err: any) => {
-        setStatus(ValidationStatus.Invalid);
-        setError(err.data?.message || err.message || 'Validation failed');
-      });
-  }, 500, [when, query.bucket, query.entry, datasourceId]);
+          setError(err.data?.message || err.message || 'Validation failed');
+        });
+    },
+    500,
+    [when, query.bucket, query.entry, datasourceId]
+  );
 
   return (
     <div className={styles.toolbar}>
       <div className={styles.validation}>
-        {missingBucket && missingEntry && (
-          <span>Select bucket and entry to validate condition</span>
-        )}
-        {missingBucket && !missingEntry && (
-          <span>Select bucket to validate condition</span>
-        )}
-        {!missingBucket && missingEntry && (
-          <span>Select entry to validate condition</span>
-        )}
+        {missingBucket && missingEntry && <span>Select bucket and entry to validate condition</span>}
+        {missingBucket && !missingEntry && <span>Select bucket to validate condition</span>}
+        {!missingBucket && missingEntry && <span>Select entry to validate condition</span>}
         {!missingBucket && !missingEntry && status === ValidationStatus.Loading && (
           <>
             <Spinner size="xs" />
@@ -109,7 +111,7 @@ export function JsonToolbox({ query, formatCode, onExpand, isExpanded, datasourc
         {!missingBucket && !missingEntry && status === ValidationStatus.Invalid && (
           <>
             <span className={styles.error}>✗</span>
-            <span>{error || "Invalid condition"}</span>
+            <span>{error || 'Invalid condition'}</span>
           </>
         )}
       </div>
@@ -119,12 +121,12 @@ export function JsonToolbox({ query, formatCode, onExpand, isExpanded, datasourc
           <IconButton name="brackets-curly" size="xs" onClick={formatCode} aria-label="Format query" />
         </Tooltip>
 
-        <Tooltip content={isExpanded ? "Collapse editor" : "Expand editor"}>
+        <Tooltip content={isExpanded ? 'Collapse editor' : 'Expand editor'}>
           <IconButton
             size="xs"
-            name={isExpanded ? "compress-arrows" : "expand-arrows"}
+            name={isExpanded ? 'compress-arrows' : 'expand-arrows'}
             onClick={toggleExpand}
-            aria-label={isExpanded ? "Collapse editor" : "Expand editor"}
+            aria-label={isExpanded ? 'Collapse editor' : 'Expand editor'}
           />
         </Tooltip>
       </Stack>
