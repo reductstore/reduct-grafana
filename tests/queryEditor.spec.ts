@@ -1,8 +1,26 @@
 import { test, expect } from '@grafana/plugin-e2e';
 import { picker, clickOption } from './helpers/selectHelpers';
+import { getGrafanaMajorVersion } from './helpers/grafanaVersion';
 
 test.describe('ReductStore Query Editor', () => {
-  test.beforeEach(async ({ page }) => {
+  let skipBecauseOldGrafana = false;
+  let versionChecked = false;
+
+  test.beforeEach(async ({ page }, testInfo) => {
+    // Check Grafana version only once
+    if (!versionChecked) {
+      const major = await getGrafanaMajorVersion(page);
+      versionChecked = true;
+      skipBecauseOldGrafana = major < 12;
+
+      if (skipBecauseOldGrafana) {
+        testInfo.skip(true, `ReductStore query editor E2E is only supported on Grafana >= 12`);
+      }
+    } else if (skipBecauseOldGrafana) {
+      testInfo.skip();
+    }
+
+    // Mock backend responses
     await page.route('**/api/datasources/**/resources/listBuckets', async (route) => {
       await route.fulfill({
         status: 200,

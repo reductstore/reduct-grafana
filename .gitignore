@@ -55,3 +55,7 @@ private/
 
 # Development tools
 .bra.toml
+
+# Packaged files
+reductstore-datasource/
+reductstore-datasource.zip
