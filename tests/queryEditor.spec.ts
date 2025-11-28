@@ -1,13 +1,8 @@
 import { test, expect } from '@grafana/plugin-e2e';
-import type { Page } from '@playwright/test';
-
-function picker(page: Page, label: string) {
-  return page.locator(`label:has-text("${label}") >> xpath=following-sibling::*[1]`);
-}
+import { picker, clickOption } from './helpers/selectHelpers';
 
 test.describe('ReductStore Query Editor', () => {
   test.beforeEach(async ({ page }) => {
-    // Mock listBuckets
     await page.route('**/api/datasources/**/resources/listBuckets', async (route) => {
       await route.fulfill({
         status: 200,
@@ -16,7 +11,6 @@ test.describe('ReductStore Query Editor', () => {
       });
     });
 
-    // Mock listEntries
     await page.route('**/api/datasources/**/resources/listEntries', async (route) => {
       await route.fulfill({
         status: 200,
@@ -25,7 +19,6 @@ test.describe('ReductStore Query Editor', () => {
       });
     });
 
-    // Mock serverInfo
     await page.route('**/api/datasources/**/resources/serverInfo', async (route) => {
       await route.fulfill({
         status: 200,
@@ -53,14 +46,10 @@ test.describe('ReductStore Query Editor', () => {
     const ds = await readProvisionedDataSource({ fileName: 'datasources.yml' });
     await panelEditPage.datasource.set(ds.name);
 
-    // Select bucket
     await picker(page, 'Bucket').click();
-    await page.getByRole('option').first().click();
+    await clickOption(page, 'bucket-picker-option-test-bucket', 'test-bucket');
 
-    // Select entry
     await picker(page, 'Entry').click();
-
-    // Entries should now be loaded and visible
     await expect(page.getByRole('option')).toBeVisible();
   });
 
@@ -74,15 +63,12 @@ test.describe('ReductStore Query Editor', () => {
 
     const queryReq = panelEditPage.waitForQueryDataRequest();
 
-    // Select bucket
     await picker(page, 'Bucket').click();
-    await page.getByRole('option').first().click();
+    await clickOption(page, 'bucket-picker-option-test-bucket', 'test-bucket');
 
-    // Select entry
     await picker(page, 'Entry').click();
-    await page.getByRole('option').first().click();
+    await clickOption(page, 'entry-picker-option-test-entry', 'test-entry');
 
-    // Query should be triggered
     await expect(await queryReq).toBeTruthy();
   });
 
@@ -90,19 +76,16 @@ test.describe('ReductStore Query Editor', () => {
     const ds = await readProvisionedDataSource({ fileName: 'datasources.yml' });
     await panelEditPage.datasource.set(ds.name);
 
-    // Select bucket
     await picker(page, 'Bucket').click();
-    await page.getByRole('option').first().click();
+    await clickOption(page, 'bucket-picker-option-test-bucket', 'test-bucket');
 
-    // Select entry
     await picker(page, 'Entry').click();
-    await page.getByRole('option').first().click();
+    await clickOption(page, 'entry-picker-option-test-entry', 'test-entry');
 
     const queryReq = panelEditPage.waitForQueryDataRequest();
 
-    // Change Scope
-    await picker(page, 'Scope').click();
-    await page.getByRole('option', { name: 'Content Only' }).click();
+    await page.getByTestId('scope-picker').click();
+    await clickOption(page, 'scope-picker-option-content-only', 'Content Only');
 
     await expect(await queryReq).toBeTruthy();
   });
@@ -115,13 +98,11 @@ test.describe('ReductStore Query Editor', () => {
     const ds = await readProvisionedDataSource({ fileName: 'datasources.yml' });
     await panelEditPage.datasource.set(ds.name);
 
-    // Select a bucket
     await picker(page, 'Bucket').click();
-    await page.getByRole('option', { name: 'test-bucket' }).click();
+    await clickOption(page, 'bucket-picker-option-test-bucket', 'test-bucket');
 
-    // Select an entry
     await picker(page, 'Entry').click();
-    await page.getByRole('option', { name: 'test-entry' }).click();
+    await clickOption(page, 'entry-picker-option-test-entry', 'test-entry');
 
     const newQueryJson = JSON.stringify(
       {
@@ -137,10 +118,8 @@ test.describe('ReductStore Query Editor', () => {
     await editor.fill(newQueryJson);
     await editor.blur();
 
-    // Format the query
     await page.getByRole('button', { name: /format query/i }).click();
 
-    // Run the query
     const runButton = page.getByRole('button', { name: /^run query$/i });
     await expect(runButton).toBeEnabled();
 
@@ -148,7 +127,6 @@ test.describe('ReductStore Query Editor', () => {
 
     await runButton.click();
 
-    // Wait for query to complete
     await expect(await queryReq).toBeTruthy();
   });
 });

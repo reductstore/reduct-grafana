@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef } from 'react';
-import { CodeEditor, Monaco, MonacoEditor } from '@grafana/ui';
+import { CodeEditor, Monaco, MonacoEditor, useTheme2 } from '@grafana/ui';
 import { ReductQuery } from '../../types';
 import { getCompletionProvider } from './reductstore';
 
@@ -15,8 +15,9 @@ export function JsonEditorCore({ onChange, query, width, height, children }: Pro
   const queryRef = useRef(query);
   const registeredRef = useRef(false);
   const editorRef = useRef<MonacoEditor | null>(null);
+  const monacoRef = useRef<Monaco | null>(null);
+  const theme = useTheme2();
 
-  // Keep queryRef always updated
   useEffect(() => {
     queryRef.current = query;
   }, [query]);
@@ -29,14 +30,14 @@ export function JsonEditorCore({ onChange, query, width, height, children }: Pro
       : '';
 
   const handleEditorChange = (value: string) => {
-    const trimmedValue = value.trim();
+    const trimmed = value.trim();
     let whenValue: any;
 
-    if (trimmedValue === '') {
+    if (trimmed === '') {
       whenValue = undefined;
     } else {
       try {
-        whenValue = JSON.parse(trimmedValue);
+        whenValue = JSON.parse(trimmed);
       } catch {
         whenValue = value;
       }
@@ -44,51 +45,33 @@ export function JsonEditorCore({ onChange, query, width, height, children }: Pro
 
     const newQuery: ReductQuery = {
       ...queryRef.current,
-      options: {
-        ...queryRef.current.options,
-        when: whenValue,
-      },
+      options: { ...queryRef.current.options, when: whenValue },
     };
+
     onChange(newQuery, false);
   };
 
   const formatCode = useCallback(() => {
-    if (editorRef.current) {
-      editorRef.current.getAction('editor.action.formatDocument')?.run();
-    }
+    editorRef.current?.getAction('editor.action.formatDocument')?.run();
   }, []);
 
   const onEditorDidMount = (editor: MonacoEditor, monaco: Monaco) => {
+    editorRef.current = editor;
+    monacoRef.current = monaco;
+
     if (!registeredRef.current) {
-      monaco.languages.json.jsonDefaults.setDiagnosticsOptions({
-        validate: false,
-        allowComments: false,
-        schemas: [],
-        enableSchemaRequest: false,
-      });
-      monaco.languages.json.jsonDefaults.setModeConfiguration({
-        documentFormattingEdits: false,
-        documentRangeFormattingEdits: false,
-        completionItems: false,
-        hovers: false,
-        documentSymbols: false,
-        tokens: true,
-        colors: true,
-        foldingRanges: true,
-        diagnostics: false,
-      });
-
-      // Register our custom completion provider
+      monaco.languages.json.jsonDefaults.setDiagnosticsOptions({ validate: false });
       monaco.languages.registerCompletionItemProvider('json', getCompletionProvider());
-
       registeredRef.current = true;
     }
-    editorRef.current = editor;
+
+    monaco.editor.setTheme(theme.isDark ? 'grafana-dark' : 'grafana-light');
   };
 
   return (
     <>
       <CodeEditor
+        key={theme.isDark ? 'dark' : 'light'}
         width={width}
         height={height ?? 200}
         language="json"

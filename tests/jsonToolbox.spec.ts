@@ -1,13 +1,8 @@
 import { test, expect } from '@grafana/plugin-e2e';
-import type { Page } from '@playwright/test';
-
-function picker(page: Page, label: string) {
-  return page.locator(`label:has-text("${label}") >> xpath=following-sibling::*[1]`);
-}
+import { picker, clickOption } from './helpers/selectHelpers';
 
 test.describe('ReductStore JSON Toolbox', () => {
   test.beforeEach(async ({ page }) => {
-    // Mock buckets
     await page.route('**/api/datasources/**/resources/listBuckets', async (route) => {
       await route.fulfill({
         status: 200,
@@ -16,7 +11,6 @@ test.describe('ReductStore JSON Toolbox', () => {
       });
     });
 
-    // Mock entries
     await page.route('**/api/datasources/**/resources/listEntries', async (route) => {
       await route.fulfill({
         status: 200,
@@ -25,7 +19,6 @@ test.describe('ReductStore JSON Toolbox', () => {
       });
     });
 
-    // Mock server info
     await page.route('**/api/datasources/**/resources/serverInfo', async (route) => {
       await route.fulfill({
         status: 200,
@@ -41,10 +34,8 @@ test.describe('ReductStore JSON Toolbox', () => {
       });
     });
 
-    // Mock condition validator
     await page.route('**/api/datasources/**/resources/validateCondition', async (route) => {
       const body = await route.request().postDataJSON();
-
       const isValid = typeof body.condition === 'object' && body.condition !== null && !Array.isArray(body.condition);
 
       await route.fulfill({
@@ -61,8 +52,6 @@ test.describe('ReductStore JSON Toolbox', () => {
   test('shows missing bucket/entry validation messages', async ({ panelEditPage, readProvisionedDataSource, page }) => {
     const ds = await readProvisionedDataSource({ fileName: 'datasources.yml' });
     await panelEditPage.datasource.set(ds.name);
-
-    // Toolbox message should ask for bucket & entry
     await expect(page.getByText(/select bucket and entry/i)).toBeVisible();
   });
 
@@ -74,23 +63,18 @@ test.describe('ReductStore JSON Toolbox', () => {
     const ds = await readProvisionedDataSource({ fileName: 'datasources.yml' });
     await panelEditPage.datasource.set(ds.name);
 
-    // Select bucket & entry
     await picker(page, 'Bucket').click();
-    await page.getByRole('option', { name: 'test-bucket' }).click();
+    await clickOption(page, 'bucket-picker-option-test-bucket', 'test-bucket');
 
     await picker(page, 'Entry').click();
-    await page.getByRole('option', { name: 'test-entry' }).click();
+    await clickOption(page, 'entry-picker-option-test-entry', 'test-entry');
 
-    // Fill valid JSON
     const editor = page.getByRole('textbox', { name: /editor content/i });
-
     const requestPromise = page.waitForRequest('**/validateCondition');
-
     await editor.fill('{ "&sensor": { "$eq": "ok" } }');
 
     const req = await requestPromise;
     const body = req.postDataJSON();
-
     expect(body.condition).toEqual({ '&sensor': { $eq: 'ok' } });
   });
 
@@ -98,24 +82,19 @@ test.describe('ReductStore JSON Toolbox', () => {
     const ds = await readProvisionedDataSource({ fileName: 'datasources.yml' });
     await panelEditPage.datasource.set(ds.name);
 
-    // Select bucket & entry
     await picker(page, 'Bucket').click();
-    await page.getByRole('option', { name: 'test-bucket' }).click();
+    await clickOption(page, 'bucket-picker-option-test-bucket', 'test-bucket');
 
     await picker(page, 'Entry').click();
-    await page.getByRole('option', { name: 'test-entry' }).click();
+    await clickOption(page, 'entry-picker-option-test-entry', 'test-entry');
 
-    // Fill invalid JSON
     const editor = page.getByRole('textbox', { name: /editor content/i });
-
     const requestPromise = page.waitForRequest('**/validateCondition');
 
     await editor.fill('not json at all');
 
     const req = await requestPromise;
     const postData = req.postDataJSON();
-
-    // assert backend received invalid text
     expect(postData.condition).toBe('not json at all');
   });
 
@@ -123,16 +102,13 @@ test.describe('ReductStore JSON Toolbox', () => {
     const ds = await readProvisionedDataSource({ fileName: 'datasources.yml' });
     await panelEditPage.datasource.set(ds.name);
 
-    // Select bucket & entry
     await picker(page, 'Bucket').click();
-    await page.getByRole('option', { name: 'test-bucket' }).click();
+    await clickOption(page, 'bucket-picker-option-test-bucket', 'test-bucket');
 
     await picker(page, 'Entry').click();
-    await page.getByRole('option', { name: 'test-entry' }).click();
+    await clickOption(page, 'entry-picker-option-test-entry', 'test-entry');
 
     const editor = page.getByRole('textbox', { name: /editor content/i });
-
-    // Unformatted JSON
     await editor.fill('{"a":1}');
 
     const content = await editor.inputValue();
@@ -143,23 +119,18 @@ test.describe('ReductStore JSON Toolbox', () => {
     const ds = await readProvisionedDataSource({ fileName: 'datasources.yml' });
     await panelEditPage.datasource.set(ds.name);
 
-    // Select bucket & entry
     await picker(page, 'Bucket').click();
-    await page.getByRole('option', { name: 'test-bucket' }).click();
+    await clickOption(page, 'bucket-picker-option-test-bucket', 'test-bucket');
 
     await picker(page, 'Entry').click();
-    await page.getByRole('option', { name: 'test-entry' }).click();
+    await clickOption(page, 'entry-picker-option-test-entry', 'test-entry');
 
-    // Expand
     await page.getByRole('button', { name: /expand editor/i }).click();
 
-    // Modal title (unique)
     await expect(page.getByRole('heading', { name: /json condition editor/i })).toBeVisible();
 
-    // Collapse
     await page.getByRole('button', { name: /collapse editor/i }).click();
 
-    // Placeholder disappears
     await expect(page.getByText(/editing in expanded json condition editor/i)).not.toBeVisible();
   });
 });

@@ -54,4 +54,4 @@ private/
 .venv
 
 # Development tools
-bra.toml
+.bra.toml

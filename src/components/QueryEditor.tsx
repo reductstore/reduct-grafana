@@ -4,7 +4,7 @@ import { getBackendSrv } from '@grafana/runtime';
 import { QueryEditorProps, SelectableValue } from '@grafana/data';
 import { DataMode, ReductQuery, ReductSourceOptions } from '../types';
 import { DataSource } from '../datasource';
-import { CompatiblePicker } from './CompatiblePicker';
+import { CompatibleSelect } from './CompatibleSelect';
 import { JsonEditor } from './json-editor/JsonEditor';
 import { QueryHeader } from './QueryHeader';
 
@@ -117,17 +117,24 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
       <QueryHeader query={query} datasource={datasource} onRunQuery={onRunQuery} />
       <InlineFieldRow>
         <InlineField label="Bucket" tooltip="The bucket to query from" grow>
-          <CompatiblePicker
+          <CompatibleSelect
+            testId="bucket-picker"
             options={buckets}
             value={buckets.find((b) => b.value === bucket)}
             onChange={onBucketChange}
           />
         </InlineField>
         <InlineField label="Entry" tooltip="The entry within the bucket to query" grow>
-          <CompatiblePicker options={entries} value={entries.find((e) => e.value === entry)} onChange={onEntryChange} />
+          <CompatibleSelect
+            testId="entry-picker"
+            options={entries}
+            value={entries.find((e) => e.value === entry)}
+            onChange={onEntryChange}
+          />
         </InlineField>
         <InlineField label="Scope" tooltip="Controls what the query returns: labels only, content only, or both" grow>
-          <CompatiblePicker
+          <CompatibleSelect
+            testId="scope-picker"
             options={modeOptions}
             value={modeOptions.find((m) => m.value === mode)}
             onChange={onModeChange}
