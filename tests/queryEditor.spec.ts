@@ -84,7 +84,7 @@ test.describe('ReductStore Query Editor', () => {
 
     const queryReq = panelEditPage.waitForQueryDataRequest();
 
-    await page.getByTestId('scope-picker').click();
+    await picker(page, 'Scope').click();
     await clickOption(page, 'scope-picker-option-content-only', 'Content Only');
 
     await expect(await queryReq).toBeTruthy();

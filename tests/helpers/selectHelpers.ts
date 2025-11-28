@@ -8,7 +8,7 @@ export async function clickOption(page: Page, testId: string, label: string) {
   const byTestId = page.getByTestId(testId);
 
   if (await byTestId.count()) {
-    await byTestId.click();
+    await byTestId.first().click();
     return;
   }
 
