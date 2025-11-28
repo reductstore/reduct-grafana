@@ -42,7 +42,7 @@ export const EXAMPLES = [
   {
     name: 'Complex nested condition',
     insertText:
-      '{\n  "$and": [\n    {\n      "$or": [\n        { "&level": { "$eq": "error" } },\n        { "&level": { "$eq": "critical" } }\n      ]\n    },\n    { "&timestamp": { "$gte": 1640995200000 } }\n  ]\n}',
+      '{\n  "$and": [\n    {\n      "$or": [\n        { "&level": { "$eq": "error" } },\n        { "&level": { "$eq": "critical" } }\n      ]\n    },\n    { "&timestamp": { "$gte": 1640995200000000 } }\n  ]\n}',
     description: 'Nested logical operators example',
   },
 ];
