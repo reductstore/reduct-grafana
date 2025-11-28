@@ -25,10 +25,14 @@ func getServerUrl() string {
 }
 
 func runQuery(tb testing.TB, query string) (backend.QueryDataResponse, func(tb testing.TB)) {
-	// Prepare bucket with data
 	ctx := context.Background()
 
-	client := reduct.NewClient(getServerUrl(), reduct.ClientOptions{})
+	token := "dev-token"
+
+	client := reduct.NewClient(getServerUrl(), reduct.ClientOptions{
+		APIToken: token,
+	})
+
 	bucket, err := client.CreateOrGetBucket(ctx, "test-bucket", nil)
 	if err != nil {
 		tb.Fatal(err)
@@ -40,7 +44,7 @@ func runQuery(tb testing.TB, query string) (backend.QueryDataResponse, func(tb t
 		record := bucket.BeginWrite(ctx, "entity1", &reduct.WriteOptions{
 			Timestamp: ts + i,
 			Labels: map[string]any{
-				"bool-label":   bool(i%2 == 0),
+				"bool-label":   i%2 == 0,
 				"int-label":    i,
 				"float-label":  float64(i) + 0.5,
 				"string-label": "label-" + strconv.FormatInt(i, 10),
@@ -54,28 +58,29 @@ func runQuery(tb testing.TB, query string) (backend.QueryDataResponse, func(tb t
 			"str_number": "123",
 			"source_id":  "00000001_000",
 		})
-		body := string(b)
-		err := record.Write(body)
 
-		if err != nil {
+		if err := record.Write(string(b)); err != nil {
 			tb.Fatal(err)
 		}
-
 	}
 
 	instance, err := NewDatasource(ctx, backend.DataSourceInstanceSettings{
 		JSONData: json.RawMessage(`{
-			"serverURL": "` + getServerUrl() + `",
-			"verifySSL": false
-		}`),
+						"serverURL": "` + getServerUrl() + `",
+						"verifySSL": false
+				}`),
+		DecryptedSecureJSONData: map[string]string{
+			"serverToken": token,
+		},
 	})
-
-	assert.Nil(tb, err)
+	if err != nil {
+		tb.Fatal(err)
+	}
 
 	ds := instance.(*ReductDatasource)
 
 	resp, err := ds.QueryData(
-		context.Background(),
+		ctx,
 		&backend.QueryDataRequest{
 			Queries: []backend.DataQuery{
 				{
@@ -89,14 +94,13 @@ func runQuery(tb testing.TB, query string) (backend.QueryDataResponse, func(tb t
 			},
 		},
 	)
+
 	if err != nil {
-		tb.Error(err)
+		tb.Fatal(err)
 	}
 
 	return *resp, func(tb testing.TB) {
-		// Cleanup bucket after test
-		err := bucket.Remove(ctx)
-		if err != nil {
+		if err := bucket.Remove(ctx); err != nil {
 			tb.Fatal(err)
 		}
 	}
