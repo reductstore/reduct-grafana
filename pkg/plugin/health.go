@@ -41,6 +41,14 @@ func (d *ReductDatasource) CheckHealth(ctx context.Context, req *backend.CheckHe
 		return res, nil
 	}
 
+	// Test authentication by trying to get server info
+	_, err = client.GetInfo(ctx)
+	if err != nil {
+		res.Status = backend.HealthStatusError
+		res.Message = "Authentication failed or server error"
+		return res, nil
+	}
+
 	return &backend.CheckHealthResult{
 		Status:  backend.HealthStatusOk,
 		Message: "Data source is working",

@@ -71,10 +71,10 @@
     "@grafana/runtime": "^12.0.1",
     "@grafana/schema": "^12.0.1",
     "@grafana/ui": "^12.0.1",
+    "@types/react-virtualized-auto-sizer": "^1.0.4",
     "react": "18.2.0",
     "react-dom": "18.2.0",
-    "react-codemirror2": "^8.0.1",
-    "codemirror": "^5.65.20"
+    "react-virtualized-auto-sizer": "^1.0.26"
   },
   "packageManager": "npm@10.9.2"
 }

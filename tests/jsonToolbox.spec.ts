@@ -2,7 +2,7 @@ import { test, expect } from '@grafana/plugin-e2e';
 import { picker, clickOption } from './helpers/selectHelpers';
 import { getGrafanaMajorVersion } from './helpers/grafanaVersion';
 
-test.describe('ReductStore Query Editor', () => {
+test.describe('ReductStore JSON Toolbox', () => {
   let skipBecauseOldGrafana = false;
   let versionChecked = false;
 
@@ -14,7 +14,7 @@ test.describe('ReductStore Query Editor', () => {
       skipBecauseOldGrafana = major < 12;
 
       if (skipBecauseOldGrafana) {
-        testInfo.skip(true, `ReductStore query editor E2E is only supported on Grafana >= 12`);
+        testInfo.skip(true, `JSON Toolbox UI not available on Grafana ${major}`);
       }
     } else if (skipBecauseOldGrafana) {
       testInfo.skip();
@@ -51,64 +51,30 @@ test.describe('ReductStore Query Editor', () => {
         }),
       });
     });
+
+    await page.route('**/api/datasources/**/resources/validateCondition', async (route) => {
+      const body = await route.request().postDataJSON();
+      const isValid = typeof body.condition === 'object' && body.condition !== null && !Array.isArray(body.condition);
+
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          valid: isValid,
+          error: isValid ? undefined : 'Malformed JSON',
+        }),
+      });
+    });
   });
 
-  test('smoke: should render query editor', async ({ panelEditPage, readProvisionedDataSource, page }) => {
+  test('shows missing bucket/entry validation messages', async ({ panelEditPage, readProvisionedDataSource, page }) => {
     const ds = await readProvisionedDataSource({ fileName: 'datasources.yml' });
     await panelEditPage.datasource.set(ds.name);
-
-    await expect(page.locator('label:has-text("Bucket")')).toBeVisible();
+    await page.getByRole('button', { name: /format query/i }).waitFor();
+    await expect(page.getByText(/select bucket and entry/i)).toBeVisible();
   });
 
-  test('should load entries when a bucket is selected', async ({ panelEditPage, readProvisionedDataSource, page }) => {
-    const ds = await readProvisionedDataSource({ fileName: 'datasources.yml' });
-    await panelEditPage.datasource.set(ds.name);
-
-    await picker(page, 'Bucket').click();
-    await clickOption(page, 'bucket-picker-option-test-bucket', 'test-bucket');
-
-    await picker(page, 'Entry').click();
-    await expect(page.getByRole('option')).toBeVisible();
-  });
-
-  test('should trigger query when bucket and entry selected', async ({
-    panelEditPage,
-    readProvisionedDataSource,
-    page,
-  }) => {
-    const ds = await readProvisionedDataSource({ fileName: 'datasources.yml' });
-    await panelEditPage.datasource.set(ds.name);
-
-    const queryReq = panelEditPage.waitForQueryDataRequest();
-
-    await picker(page, 'Bucket').click();
-    await clickOption(page, 'bucket-picker-option-test-bucket', 'test-bucket');
-
-    await picker(page, 'Entry').click();
-    await clickOption(page, 'entry-picker-option-test-entry', 'test-entry');
-
-    await expect(await queryReq).toBeTruthy();
-  });
-
-  test('should trigger query when scope is changed', async ({ panelEditPage, readProvisionedDataSource, page }) => {
-    const ds = await readProvisionedDataSource({ fileName: 'datasources.yml' });
-    await panelEditPage.datasource.set(ds.name);
-
-    await picker(page, 'Bucket').click();
-    await clickOption(page, 'bucket-picker-option-test-bucket', 'test-bucket');
-
-    await picker(page, 'Entry').click();
-    await clickOption(page, 'entry-picker-option-test-entry', 'test-entry');
-
-    const queryReq = panelEditPage.waitForQueryDataRequest();
-
-    await picker(page, 'Scope').click();
-    await clickOption(page, 'scope-picker-option-content-only', 'Content Only');
-
-    await expect(await queryReq).toBeTruthy();
-  });
-
-  test('should trigger query when JSON editor changes full query', async ({
+  test('valid JSON is sent as parsed object to backend validator', async ({
     panelEditPage,
     readProvisionedDataSource,
     page,
@@ -121,30 +87,69 @@ test.describe('ReductStore Query Editor', () => {
 
     await picker(page, 'Entry').click();
     await clickOption(page, 'entry-picker-option-test-entry', 'test-entry');
-
-    const newQueryJson = JSON.stringify(
-      {
-        bucket: 'test-bucket',
-        entry: 'test-entry',
-        options: { mode: 'LabelOnly' },
-      },
-      null,
-      2
-    );
 
     const editor = page.getByRole('textbox', { name: /editor content/i });
-    await editor.fill(newQueryJson);
-    await editor.blur();
+    const requestPromise = page.waitForRequest('**/validateCondition');
+    await editor.fill('{ "&sensor": { "$eq": "ok" } }');
 
-    await page.getByRole('button', { name: /format query/i }).click();
+    const req = await requestPromise;
+    const body = req.postDataJSON();
+    expect(body.condition).toEqual({ '&sensor': { $eq: 'ok' } });
+  });
 
-    const runButton = page.getByRole('button', { name: /^run query$/i });
-    await expect(runButton).toBeEnabled();
+  test('sends invalid JSON to backend', async ({ panelEditPage, readProvisionedDataSource, page }) => {
+    const ds = await readProvisionedDataSource({ fileName: 'datasources.yml' });
+    await panelEditPage.datasource.set(ds.name);
 
-    const queryReq = panelEditPage.waitForQueryDataRequest();
+    await picker(page, 'Bucket').click();
+    await clickOption(page, 'bucket-picker-option-test-bucket', 'test-bucket');
 
-    await runButton.click();
+    await picker(page, 'Entry').click();
+    await clickOption(page, 'entry-picker-option-test-entry', 'test-entry');
 
-    await expect(await queryReq).toBeTruthy();
+    const editor = page.getByRole('textbox', { name: /editor content/i });
+    const requestPromise = page.waitForRequest('**/validateCondition');
+
+    await editor.fill('not json at all');
+
+    const req = await requestPromise;
+    const postData = req.postDataJSON();
+    expect(postData.condition).toBe('not json at all');
+  });
+
+  test('formats JSON with Monaco', async ({ panelEditPage, readProvisionedDataSource, page }) => {
+    const ds = await readProvisionedDataSource({ fileName: 'datasources.yml' });
+    await panelEditPage.datasource.set(ds.name);
+
+    await picker(page, 'Bucket').click();
+    await clickOption(page, 'bucket-picker-option-test-bucket', 'test-bucket');
+
+    await picker(page, 'Entry').click();
+    await clickOption(page, 'entry-picker-option-test-entry', 'test-entry');
+
+    const editor = page.getByRole('textbox', { name: /editor content/i });
+    await editor.fill('{"a":1}');
+
+    const content = await editor.inputValue();
+    expect(content).toMatch(/\n/);
+  });
+
+  test('expands and collapses the JSON editor', async ({ panelEditPage, readProvisionedDataSource, page }) => {
+    const ds = await readProvisionedDataSource({ fileName: 'datasources.yml' });
+    await panelEditPage.datasource.set(ds.name);
+
+    await picker(page, 'Bucket').click();
+    await clickOption(page, 'bucket-picker-option-test-bucket', 'test-bucket');
+
+    await picker(page, 'Entry').click();
+    await clickOption(page, 'entry-picker-option-test-entry', 'test-entry');
+
+    await page.getByRole('button', { name: /expand editor/i }).click();
+
+    await expect(page.getByRole('heading', { name: /json condition editor/i })).toBeVisible();
+
+    await page.getByRole('button', { name: /collapse editor/i }).click();
+
+    await expect(page.getByText(/editing in expanded json condition editor/i)).not.toBeVisible();
   });
 });

@@ -52,3 +52,10 @@ data
 private/
 .env
 .venv
+
+# Development tools
+.bra.toml
+
+# Packaged files
+reductstore-datasource/
+reductstore-datasource.zip
