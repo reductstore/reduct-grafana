@@ -11,9 +11,11 @@ type Props = {
   children: (formatCode: () => void) => React.ReactNode;
 };
 
+// Global flag to track if completion provider has been registered
+let isCompletionProviderRegistered = false;
+
 export function JsonEditorCore({ onChange, query, width, height, children }: Props) {
   const queryRef = useRef(query);
-  const registeredRef = useRef(false);
   const editorRef = useRef<MonacoEditor | null>(null);
   const monacoRef = useRef<Monaco | null>(null);
   const theme = useTheme2();
@@ -26,8 +28,8 @@ export function JsonEditorCore({ onChange, query, width, height, children }: Pro
     typeof query.options?.when === 'string'
       ? query.options.when
       : query.options?.when
-      ? JSON.stringify(query.options.when, null, 2)
-      : '';
+        ? JSON.stringify(query.options.when, null, 2)
+        : '';
 
   const handleEditorChange = (value: string) => {
     const trimmed = value.trim();
@@ -59,10 +61,22 @@ export function JsonEditorCore({ onChange, query, width, height, children }: Pro
     editorRef.current = editor;
     monacoRef.current = monaco;
 
-    if (!registeredRef.current) {
+    if (!isCompletionProviderRegistered) {
+      // Disable default JSON completions and validation
       monaco.languages.json.jsonDefaults.setDiagnosticsOptions({ validate: false });
+      monaco.languages.json.jsonDefaults.setModeConfiguration({
+        completionItems: false,
+        hovers: false,
+        documentSymbols: false,
+        colors: false,
+        foldingRanges: false,
+        diagnostics: false,
+        selectionRanges: false
+      });
+
+      // Register our custom completion provider
       monaco.languages.registerCompletionItemProvider('json', getCompletionProvider());
-      registeredRef.current = true;
+      isCompletionProviderRegistered = true;
     }
 
     monaco.editor.setTheme(theme.isDark ? 'grafana-dark' : 'grafana-light');
