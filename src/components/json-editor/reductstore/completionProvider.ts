@@ -3,6 +3,7 @@ import {
   LOGICAL_OPERATORS,
   STRING_OPERATORS,
   ARITHMETIC_OPERATORS,
+  AGGREGATION_OPERATORS,
   MISC_OPERATORS,
 } from './operators';
 import { DIRECTIVES } from './directives';
@@ -165,6 +166,18 @@ export const getCompletionProvider = () => {
           });
           sortIndex++;
         });
+        // Aggregation operators
+        AGGREGATION_OPERATORS.forEach((op) => {
+          suggestions.push({
+            label: op.name,
+            kind: CompletionItemKind.Operator,
+            insertText: op.insertText,
+            detail: op.description,
+            range,
+            sortText: `5${sortIndex.toString().padStart(2, '0')}`,
+          });
+          sortIndex++;
+        });
         // Misc operators
         MISC_OPERATORS.forEach((op) => {
           suggestions.push({
@@ -173,7 +186,7 @@ export const getCompletionProvider = () => {
             insertText: op.insertText,
             detail: op.description,
             range,
-            sortText: `5${sortIndex.toString().padStart(2, '0')}`,
+            sortText: `6${sortIndex.toString().padStart(2, '0')}`,
           });
           sortIndex++;
         });
@@ -258,8 +271,8 @@ export const getCompletionProvider = () => {
           });
         });
 
-        // Misc operators (priority 3XX)
-        MISC_OPERATORS.forEach((op, index) => {
+        // Aggregation operators (priority 3XX)
+        AGGREGATION_OPERATORS.forEach((op, index) => {
           suggestions.push({
             label: op.name,
             kind: CompletionItemKind.Operator,
@@ -267,6 +280,18 @@ export const getCompletionProvider = () => {
             detail: op.description,
             range,
             sortText: `3${index.toString().padStart(2, '0')}`,
+          });
+        });
+
+        // Misc operators (priority 4XX)
+        MISC_OPERATORS.forEach((op, index) => {
+          suggestions.push({
+            label: op.name,
+            kind: CompletionItemKind.Operator,
+            insertText: `"${op.name}": `,
+            detail: op.description,
+            range,
+            sortText: `4${index.toString().padStart(2, '0')}`,
           });
         });
 
