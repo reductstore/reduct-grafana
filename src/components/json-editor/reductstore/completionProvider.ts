@@ -53,6 +53,7 @@ export const getCompletionProvider = () => {
       const isEmpty = textUntilPosition.trim() === '';
       const isAfterOpenBrace = textUntilPosition.trim().endsWith('{');
       const isAfterColon = /:(\s*)$/.test(textUntilPosition) && !isInsideQuotes;
+      const isAfterEachT = /"\$each_t"\s*:\s*$/.test(textUntilPosition);
 
       // Check if at the very start of the document
       const isDocumentStart = isEmpty && position.lineNumber === 1;
@@ -195,6 +196,18 @@ export const getCompletionProvider = () => {
 
       // 3. When after colon (expecting values)
       if (isAfterColon) {
+        if (isAfterEachT) {
+          suggestions.push({
+            label: '$__interval',
+            kind: CompletionItemKind.Value,
+            insertText: '"$__interval"',
+            detail: 'Grafana interval macro',
+            documentation: 'Replaced by Grafana with an auto interval for the current time range',
+            range,
+            sortText: '000',
+          });
+        }
+
         // Suggest highest priority (100-104)
         suggestions.push(
           {
