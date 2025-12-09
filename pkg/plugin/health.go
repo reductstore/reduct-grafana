@@ -8,6 +8,8 @@ import (
 	"github.com/reductstore/reductstore/pkg/models"
 )
 
+var newReductClient = reductgo.NewClient
+
 // CheckHealth handles health checks sent from Grafana to the plugin.
 // The main use case for these health checks is the test button on the
 // datasource configuration page which allows users to verify that
@@ -30,7 +32,7 @@ func (d *ReductDatasource) CheckHealth(ctx context.Context, req *backend.CheckHe
 	}
 	// check for server token
 
-	client := reductgo.NewClient(pluginSettings.ServerURL, reductgo.ClientOptions{
+	client := newReductClient(pluginSettings.ServerURL, reductgo.ClientOptions{
 		APIToken:  pluginSettings.Secrets.ServerToken,
 		VerifySSL: pluginSettings.VerifySSL,
 	})
