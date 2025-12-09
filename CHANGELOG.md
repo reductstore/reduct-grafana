@@ -5,6 +5,7 @@
 ### Added
 
 - Redesigned condition editor that supports completion suggestions, [PR-28](https://github.com/reductstore/reduct-grafana/pull/28)
+- Add support for Grafana `$__interval` macro, [PR-30](https://github.com/reductstore/reduct-grafana/pull/30)
 
 ## [0.1.1] - 2025-10-22
 
