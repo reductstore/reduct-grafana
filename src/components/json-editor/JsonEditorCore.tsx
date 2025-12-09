@@ -68,6 +68,7 @@ export function JsonEditorCore({ onChange, query, width, height, children }: Pro
         completionItems: false,
         hovers: false,
         documentSymbols: false,
+        tokens: true, // keep syntax highlighting
         colors: false,
         foldingRanges: false,
         diagnostics: false,
