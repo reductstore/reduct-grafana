@@ -95,4 +95,17 @@ test.describe('ReductStore Monaco Completion Provider', () => {
     // Directives
     expect(labels).toContain('#ctx_before');
   });
+
+  test('suggests $__interval value after $each_t key', () => {
+    const provider = getCompletionProvider();
+    const model = mockModel(['{ "$each_t": ']);
+
+    const result = provider.provideCompletionItems(model, {
+      lineNumber: 1,
+      column: 13,
+    });
+
+    const labels = result.suggestions.map((s) => s.label);
+    expect(labels).toContain('$__interval');
+  });
 });
