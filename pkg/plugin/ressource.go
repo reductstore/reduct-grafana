@@ -257,7 +257,7 @@ func (d *ReductDatasource) handleValidateCondition(ctx context.Context, req *bac
 
 func parseAndNormalizeCondition(condition any) (map[string]any, error) {
 	// Default interval used for validating the condition
-	const defaultInterval = "1s" 
+	const defaultInterval = "1s"
 
 	if condition == nil {
 		return map[string]any{}, nil
@@ -275,15 +275,7 @@ func parseAndNormalizeCondition(condition any) (map[string]any, error) {
 		var parsed any
 		err := json.Unmarshal([]byte(trimmed), &parsed)
 		if err != nil {
-			// Try again after quoting $__interval macros
-			sanitized := quoteBareInterval(trimmed)
-			if sanitized != trimmed {
-				if err2 := json.Unmarshal([]byte(sanitized), &parsed); err2 != nil {
-					return nil, fmt.Errorf("invalid JSON syntax: %v", err2)
-				}
-			} else {
-				return nil, fmt.Errorf("invalid JSON syntax: %v", err)
-			}
+			return nil, fmt.Errorf("invalid JSON syntax: %v", err)
 		}
 
 		parsedMap, ok := parsed.(map[string]any)
@@ -295,36 +287,6 @@ func parseAndNormalizeCondition(condition any) (map[string]any, error) {
 	default:
 		return nil, fmt.Errorf("invalid condition: expected object or JSON string")
 	}
-}
-
-func quoteBareInterval(input string) string {
-	const macro = "$__interval"
-	var b strings.Builder
-	inString := false
-
-	for i := 0; i < len(input); {
-		ch := input[i]
-
-		if ch == '"' && (i == 0 || input[i-1] != '\\') {
-			inString = !inString
-			b.WriteByte(ch)
-			i++
-			continue
-		}
-
-		if !inString && strings.HasPrefix(input[i:], macro) {
-			b.WriteString("\"")
-			b.WriteString(macro)
-			b.WriteString("\"")
-			i += len(macro)
-			continue
-		}
-
-		b.WriteByte(ch)
-		i++
-	}
-
-	return b.String()
 }
 
 func replaceIntervalMacros(value any, interval string) any {

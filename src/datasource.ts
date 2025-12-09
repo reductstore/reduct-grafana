@@ -50,41 +50,6 @@ export class DataSource extends DataSourceWithBackend<ReductQuery, ReductSourceO
 
     const templateSrv = getTemplateSrv();
 
-    const quoteBareInterval = (input: string): string => {
-      const macro = '$__interval';
-      let inString = false;
-      let escaped = false;
-      let result = '';
-
-      for (let i = 0; i < input.length; i++) {
-        const ch = input[i];
-
-        if (ch === '\\' && !escaped) {
-          escaped = true;
-          result += ch;
-          continue;
-        }
-
-        if (ch === '"' && !escaped) {
-          inString = !inString;
-          result += ch;
-          continue;
-        }
-
-        escaped = false;
-
-        if (!inString && input.startsWith(macro, i)) {
-          result += `"${macro}"`;
-          i += macro.length - 1;
-          continue;
-        }
-
-        result += ch;
-      }
-
-      return result;
-    };
-
     const applyTemplateToValue = (value: any): any => {
       if (value === null || value === undefined) {
         return value;
@@ -109,12 +74,12 @@ export class DataSource extends DataSourceWithBackend<ReductQuery, ReductSourceO
     };
 
     if (typeof when === 'string') {
-      const sanitized = quoteBareInterval(when);
+      const sanitized = templateSrv.replace(when, scopedVars);
       try {
         const parsed = JSON.parse(sanitized);
         return applyTemplateToValue(parsed);
       } catch {
-        return templateSrv.replace(when, scopedVars);
+        return sanitized;
       }
     }
 
