@@ -40,6 +40,13 @@ export const ARITHMETIC_OPERATORS = [
   { name: '$abs', description: 'Absolute value', insertText: '$abs' },
 ];
 
+// Aggregation operators
+export const AGGREGATION_OPERATORS = [
+  { name: '$limit', description: 'Limit number of records', insertText: '$limit' },
+  { name: '$each_t', description: 'Keep records once per time interval', insertText: '$each_t' },
+  { name: '$each_n', description: 'Keep every Nth record', insertText: '$each_n' },
+];
+
 // Miscellaneous operators
 export const MISC_OPERATORS = [
   { name: '$has', description: 'Record has labels', insertText: '$has' },

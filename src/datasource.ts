@@ -9,14 +9,17 @@ export class DataSource extends DataSourceWithBackend<ReductQuery, ReductSourceO
   }
 
   applyTemplateVariables(query: ReductQuery, scopedVars: ScopedVars): ReductQuery {
+    const templateSrv = getTemplateSrv();
+
     return {
       ...query,
-      bucket: getTemplateSrv().replace(query.bucket, scopedVars),
-      entry: getTemplateSrv().replace(query.entry, scopedVars),
+      bucket: templateSrv.replace(query.bucket, scopedVars),
+      entry: templateSrv.replace(query.entry, scopedVars),
       options: {
         ...(query.options ?? {}),
-        start: Number(getTemplateSrv().replace(query.options?.start?.toString(), scopedVars)) || undefined,
-        stop: Number(getTemplateSrv().replace(query.options?.stop?.toString(), scopedVars)) || undefined,
+        start: Number(templateSrv.replace(query.options?.start?.toString(), scopedVars)) || undefined,
+        stop: Number(templateSrv.replace(query.options?.stop?.toString(), scopedVars)) || undefined,
+        when: this.applyTemplateVariablesToWhen(query.options?.when, scopedVars),
       },
     };
   }
@@ -38,5 +41,48 @@ export class DataSource extends DataSourceWithBackend<ReductQuery, ReductSourceO
         stop: options.range.to.valueOf(),
       },
     };
+  }
+
+  private applyTemplateVariablesToWhen(when: any, scopedVars: ScopedVars): any {
+    if (when === undefined || when === null) {
+      return when;
+    }
+
+    const templateSrv = getTemplateSrv();
+
+    const applyTemplateToValue = (value: any): any => {
+      if (value === null || value === undefined) {
+        return value;
+      }
+
+      if (typeof value === 'string') {
+        return templateSrv.replace(value, scopedVars);
+      }
+
+      if (Array.isArray(value)) {
+        return value.map((item) => applyTemplateToValue(item));
+      }
+
+      if (typeof value === 'object') {
+        return Object.entries(value).reduce((acc, [key, val]) => {
+          acc[key] = applyTemplateToValue(val);
+          return acc;
+        }, {} as Record<string, any>);
+      }
+
+      return value;
+    };
+
+    if (typeof when === 'string') {
+      const sanitized = templateSrv.replace(when, scopedVars);
+      try {
+        const parsed = JSON.parse(sanitized);
+        return applyTemplateToValue(parsed);
+      } catch {
+        return sanitized;
+      }
+    }
+
+    return applyTemplateToValue(when);
   }
 }

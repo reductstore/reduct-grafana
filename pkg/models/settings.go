@@ -8,7 +8,6 @@ import (
 )
 
 type PluginSettings struct {
-	Path      string                `json:"path"`
 	ServerURL string                `json:"serverURL"`
 	VerifySSL bool                  `json:"verifySSL"`
 	Secrets   *SecretPluginSettings `json:"-"`

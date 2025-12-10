@@ -9,16 +9,6 @@ export function ConfigEditor(props: Props) {
   const { onOptionsChange, options } = props;
   const { jsonData, secureJsonFields, secureJsonData } = options;
 
-  const onPathChange = (event: ChangeEvent<HTMLInputElement>) => {
-    onOptionsChange({
-      ...options,
-      jsonData: {
-        ...jsonData,
-        path: event.target.value,
-      },
-    });
-  };
-
   const onServerTokenChange = (event: ChangeEvent<HTMLInputElement>) => {
     onOptionsChange({
       ...options,
@@ -85,15 +75,6 @@ export function ConfigEditor(props: Props) {
       </InlineField>
       <InlineField label="Verify SSL" labelWidth={20} tooltip="Enable SSL certificate verification">
         <InlineSwitch id="config-editor-verify-ssl" value={jsonData.verifySSL} onChange={onVerifySSLChange} />
-      </InlineField>
-      <InlineField label="Path" labelWidth={20} tooltip="Optional path prefix">
-        <Input
-          id="config-editor-path"
-          value={jsonData.path || ''}
-          placeholder="/api/v1"
-          onChange={onPathChange}
-          width={40}
-        />
       </InlineField>
     </>
   );

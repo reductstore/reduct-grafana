@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
 	"github.com/grafana/grafana-plugin-sdk-go/backend/log"
@@ -167,41 +168,22 @@ func (d *ReductDatasource) handleValidateCondition(ctx context.Context, req *bac
 	}
 
 	// Create modified condition with $limit: 1 for validation
-	var modifiedCondition any
-	if payload.Condition == nil {
-		// If no condition, just use a simple limit
-		modifiedCondition = map[string]any{"$limit": 1}
-	} else {
-		// Parse condition as map to check for existing $limit
-		var conditionMap map[string]any
-		if conditionStr, ok := payload.Condition.(string); ok {
-			// If condition is a string, try to parse as JSON
-			if conditionStr != "" {
-				err = json.Unmarshal([]byte(conditionStr), &conditionMap)
-				if err != nil {
-					// Return JSON parse error
-					response := map[string]any{
-						"valid": false,
-						"error": fmt.Sprintf("Invalid JSON syntax: %v", err),
-					}
-					resp, _ := json.Marshal(response)
-					return sender.Send(&backend.CallResourceResponse{
-						Status: http.StatusOK,
-						Body:   resp,
-					})
-				}
-			} else {
-				conditionMap = map[string]any{}
-			}
-		} else {
-			// If condition is already an object, use it
-			conditionMap = payload.Condition.(map[string]any)
+	conditionMap, err := parseAndNormalizeCondition(payload.Condition)
+	if err != nil {
+		response := map[string]any{
+			"valid": false,
+			"error": err.Error(),
 		}
-
-		// Add or override $limit to 1 for validation
-		conditionMap["$limit"] = 1
-		modifiedCondition = conditionMap
+		resp, _ := json.Marshal(response)
+		return sender.Send(&backend.CallResourceResponse{
+			Status: http.StatusOK,
+			Body:   resp,
+		})
 	}
+
+	// Add or override $limit to 1 for validation
+	conditionMap["$limit"] = 1
+	modifiedCondition := conditionMap
 
 	// Test the condition by running a query with it
 	bucket, err := d.reductClient.GetBucket(ctx, payload.Bucket)
@@ -271,6 +253,62 @@ func (d *ReductDatasource) handleValidateCondition(ctx context.Context, req *bac
 		Status: http.StatusOK,
 		Body:   resp,
 	})
+}
+
+func parseAndNormalizeCondition(condition any) (map[string]any, error) {
+	// Default interval used for validating the condition
+	const defaultInterval = "1s"
+
+	if condition == nil {
+		return map[string]any{}, nil
+	}
+
+	switch v := condition.(type) {
+	case map[string]any:
+		return replaceIntervalMacros(v, defaultInterval).(map[string]any), nil
+	case string:
+		trimmed := strings.TrimSpace(v)
+		if trimmed == "" {
+			return map[string]any{}, nil
+		}
+
+		var parsed any
+		err := json.Unmarshal([]byte(trimmed), &parsed)
+		if err != nil {
+			return nil, fmt.Errorf("invalid JSON syntax: %v", err)
+		}
+
+		parsedMap, ok := parsed.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("invalid JSON syntax: expected object for condition")
+		}
+
+		return replaceIntervalMacros(parsedMap, defaultInterval).(map[string]any), nil
+	default:
+		return nil, fmt.Errorf("invalid condition: expected object or JSON string")
+	}
+}
+
+func replaceIntervalMacros(value any, interval string) any {
+	switch v := value.(type) {
+	case string:
+		if v == "$__interval" {
+			return interval
+		}
+		return v
+	case []any:
+		for i := range v {
+			v[i] = replaceIntervalMacros(v[i], interval)
+		}
+		return v
+	case map[string]any:
+		for key, val := range v {
+			v[key] = replaceIntervalMacros(val, interval)
+		}
+		return v
+	default:
+		return value
+	}
 }
 
 func (d *ReductDatasource) handleServerInfo(ctx context.Context, sender backend.CallResourceResponseSender) error {

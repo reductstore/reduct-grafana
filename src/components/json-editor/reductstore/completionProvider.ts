@@ -3,6 +3,7 @@ import {
   LOGICAL_OPERATORS,
   STRING_OPERATORS,
   ARITHMETIC_OPERATORS,
+  AGGREGATION_OPERATORS,
   MISC_OPERATORS,
 } from './operators';
 import { DIRECTIVES } from './directives';
@@ -52,6 +53,7 @@ export const getCompletionProvider = () => {
       const isEmpty = textUntilPosition.trim() === '';
       const isAfterOpenBrace = textUntilPosition.trim().endsWith('{');
       const isAfterColon = /:(\s*)$/.test(textUntilPosition) && !isInsideQuotes;
+      const isAfterEachT = /"\$each_t"\s*:\s*$/.test(textUntilPosition);
 
       // Check if at the very start of the document
       const isDocumentStart = isEmpty && position.lineNumber === 1;
@@ -165,8 +167,8 @@ export const getCompletionProvider = () => {
           });
           sortIndex++;
         });
-        // Misc operators
-        MISC_OPERATORS.forEach((op) => {
+        // Aggregation operators
+        AGGREGATION_OPERATORS.forEach((op) => {
           suggestions.push({
             label: op.name,
             kind: CompletionItemKind.Operator,
@@ -177,11 +179,35 @@ export const getCompletionProvider = () => {
           });
           sortIndex++;
         });
+        // Misc operators
+        MISC_OPERATORS.forEach((op) => {
+          suggestions.push({
+            label: op.name,
+            kind: CompletionItemKind.Operator,
+            insertText: op.insertText,
+            detail: op.description,
+            range,
+            sortText: `6${sortIndex.toString().padStart(2, '0')}`,
+          });
+          sortIndex++;
+        });
         return { suggestions };
       }
 
       // 3. When after colon (expecting values)
       if (isAfterColon) {
+        if (isAfterEachT) {
+          suggestions.push({
+            label: '$__interval',
+            kind: CompletionItemKind.Value,
+            insertText: '"$__interval"',
+            detail: 'Grafana interval macro',
+            documentation: 'Replaced by Grafana with an auto interval for the current time range',
+            range,
+            sortText: '000',
+          });
+        }
+
         // Suggest highest priority (100-104)
         suggestions.push(
           {
@@ -258,8 +284,8 @@ export const getCompletionProvider = () => {
           });
         });
 
-        // Misc operators (priority 3XX)
-        MISC_OPERATORS.forEach((op, index) => {
+        // Aggregation operators (priority 3XX)
+        AGGREGATION_OPERATORS.forEach((op, index) => {
           suggestions.push({
             label: op.name,
             kind: CompletionItemKind.Operator,
@@ -267,6 +293,18 @@ export const getCompletionProvider = () => {
             detail: op.description,
             range,
             sortText: `3${index.toString().padStart(2, '0')}`,
+          });
+        });
+
+        // Misc operators (priority 4XX)
+        MISC_OPERATORS.forEach((op, index) => {
+          suggestions.push({
+            label: op.name,
+            kind: CompletionItemKind.Operator,
+            insertText: `"${op.name}": `,
+            detail: op.description,
+            range,
+            sortText: `4${index.toString().padStart(2, '0')}`,
           });
         });
 
