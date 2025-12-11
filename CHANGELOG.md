@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.0.0] - 2025-12-11
+
 ### Added
 
 - Redesigned condition editor that supports completion suggestions, [PR-28](https://github.com/reductstore/reduct-grafana/pull/28)
