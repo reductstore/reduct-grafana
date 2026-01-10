@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef } from 'react';
 import { CodeEditor, Monaco, MonacoEditor, useTheme2 } from '@grafana/ui';
 import { ReductQuery } from '../../types';
-import { getCompletionProvider } from './reductstore';
+import { getCompletionProvider } from '@reductstore/reduct-query-monaco';
 
 type Props = {
   query: ReductQuery;

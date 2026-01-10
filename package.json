@@ -71,6 +71,7 @@
     "@grafana/runtime": "^12.0.1",
     "@grafana/schema": "^12.0.1",
     "@grafana/ui": "^12.0.1",
+    "@reductstore/reduct-query-monaco": "^1.0.0",
     "@types/react-virtualized-auto-sizer": "^1.0.4",
     "react": "18.2.0",
     "react-dom": "18.2.0",
