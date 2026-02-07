@@ -59,6 +59,9 @@ func (s stubClient) CreateReplicationTask(ctx context.Context, name string, task
 func (s stubClient) UpdateReplicationTask(ctx context.Context, name string, task model.ReplicationSettings) error {
 	return nil
 }
+func (s stubClient) SetReplicationMode(ctx context.Context, name string, mode model.ReplicationMode) error {
+	return nil
+}
 func (s stubClient) RemoveReplicationTask(ctx context.Context, name string) error { return nil }
 
 func newCheckHealthRequest(jsonData string) *backend.CheckHealthRequest {

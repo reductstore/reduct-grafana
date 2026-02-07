@@ -16,19 +16,19 @@ func TestProcessLabels(t *testing.T) {
 	frames := make(map[string]*data.Frame)
 
 	records := []*reductgo.ReadableRecord{
-		reductgo.NewReadableRecord(time.Now().UnixMicro(), 0, true, io.NopCloser(strings.NewReader("")), reductgo.LabelMap{
+		reductgo.NewReadableRecord("entry-0", time.Now().UnixMicro(), 0, true, io.NopCloser(strings.NewReader("")), reductgo.LabelMap{
 			"intLabel":    "42",
 			"floatLabel":  "3.14",
 			"boolLabel":   "true",
 			"stringLabel": "hello",
 		}, ""),
-		reductgo.NewReadableRecord(time.Now().Add(time.Second).UnixMicro(), 0, true, io.NopCloser(strings.NewReader("")), reductgo.LabelMap{
+		reductgo.NewReadableRecord("entry-1", time.Now().Add(time.Second).UnixMicro(), 0, true, io.NopCloser(strings.NewReader("")), reductgo.LabelMap{
 			"intLabel":    "21.9", // should truncate to 21
 			"floatLabel":  "6",
 			"boolLabel":   "false", // should become false
 			"stringLabel": "world",
 		}, ""),
-		reductgo.NewReadableRecord(time.Now().Add(2*time.Second).UnixMicro(), 0, true, io.NopCloser(strings.NewReader("")), reductgo.LabelMap{
+		reductgo.NewReadableRecord("entry-2", time.Now().Add(2*time.Second).UnixMicro(), 0, true, io.NopCloser(strings.NewReader("")), reductgo.LabelMap{
 			"intLabel":    "badInt",   // fallback should be ignored
 			"floatLabel":  "badFloat", // fallback should be ignored
 			"boolLabel":   "notBool",  // fallback should be ignored
@@ -80,6 +80,7 @@ func TestProcessContent_PreservesJSONTypes(t *testing.T) {
 	}`
 
 	record1 := reductgo.NewReadableRecord(
+		"json-entry-0",
 		time.Now().UnixMicro(),
 		0,
 		true,
@@ -97,6 +98,7 @@ func TestProcessContent_PreservesJSONTypes(t *testing.T) {
 	}`
 
 	record2 := reductgo.NewReadableRecord(
+		"json-entry-1",
 		time.Now().Add(time.Second).UnixMicro(),
 		0,
 		true,

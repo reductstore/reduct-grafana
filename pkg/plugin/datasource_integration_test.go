@@ -6,6 +6,7 @@ package plugin
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"strconv"
 	"testing"
@@ -24,16 +25,17 @@ func getServerUrl() string {
 	return url
 }
 
-func runQuery(tb testing.TB, query string) (backend.QueryDataResponse, func(tb testing.TB)) {
+func runQuery(tb testing.TB, buildQuery func(bucket string) string) (backend.QueryDataResponse, func(tb testing.TB), string) {
 	ctx := context.Background()
 
 	token := "dev-token"
+	bucketName := fmt.Sprintf("test-bucket-%d", time.Now().UnixNano())
 
 	client := reduct.NewClient(getServerUrl(), reduct.ClientOptions{
 		APIToken: token,
 	})
 
-	bucket, err := client.CreateOrGetBucket(ctx, "test-bucket", nil)
+	bucket, err := client.CreateOrGetBucket(ctx, bucketName, nil)
 	if err != nil {
 		tb.Fatal(err)
 	}
@@ -89,7 +91,7 @@ func runQuery(tb testing.TB, query string) (backend.QueryDataResponse, func(tb t
 						From: time.UnixMicro(ts).Add(-time.Minute),
 						To:   time.UnixMicro(ts + 10).Add(time.Minute),
 					},
-					JSON: json.RawMessage(query),
+					JSON: json.RawMessage(buildQuery(bucketName)),
 				},
 			},
 		},
@@ -103,14 +105,16 @@ func runQuery(tb testing.TB, query string) (backend.QueryDataResponse, func(tb t
 		if err := bucket.Remove(ctx); err != nil {
 			tb.Fatal(err)
 		}
-	}
+	}, bucketName
 }
 
 func TestQueryData(t *testing.T) {
-	resp, teardown := runQuery(t, `{
-						"Bucket": "test-bucket",
-						"Entry": "entity1"
-					}`)
+	resp, teardown, _ := runQuery(t, func(bucket string) string {
+		return fmt.Sprintf(`{
+			"Bucket": "%s",
+			"Entry": "entity1"
+		}`, bucket)
+	})
 	defer teardown(t)
 
 	assert.Equal(t, nil, resp.Responses["A"].Error)
@@ -143,14 +147,16 @@ func TestQueryData(t *testing.T) {
 }
 
 func TestQueryDataWithThen(t *testing.T) {
-	resp, teardown := runQuery(t, `{
-						"Bucket": "test-bucket",
-						"Entry": "entity1",
-						"Options": {
-							"When": { "#select_labels": ["int-label"]},
-							"Mode": "LabelOnly"
-						}
-					}`)
+	resp, teardown, _ := runQuery(t, func(bucket string) string {
+		return fmt.Sprintf(`{
+			"Bucket": "%s",
+			"Entry": "entity1",
+			"Options": {
+				"When": { "#select_labels": ["int-label"]},
+				"Mode": "LabelOnly"
+			}
+		}`, bucket)
+	})
 	defer teardown(t)
 
 	assert.Equal(t, nil, resp.Responses["A"].Error)
@@ -161,44 +167,54 @@ func TestQueryDataWithThen(t *testing.T) {
 }
 
 func TestQueryDataBadFormat(t *testing.T) {
-	resp, teardown := runQuery(t, `{broken}`)
+	resp, teardown, _ := runQuery(t, func(string) string {
+		return `{broken}`
+	})
 	defer teardown(t)
 
 	assert.Equal(t, backend.ErrDataResponse(backend.StatusBadRequest, "invalid query format"), resp.Responses["A"])
 }
 
 func TestQueryDataNoBucket(t *testing.T) {
-	resp, teardown := runQuery(t, `{
-						"Entry": "entity1"
-					}`)
+	resp, teardown, _ := runQuery(t, func(string) string {
+		return `{
+			"Entry": "entity1"
+		}`
+	})
 	defer teardown(t)
 	assert.Equal(t, backend.ErrDataResponse(backend.StatusBadRequest, "missing bucket or entry"), resp.Responses["A"])
 }
 
 func TestQueryDataNoEntry(t *testing.T) {
-	resp, teardown := runQuery(t, `{
-						"Bucket": "test-bucket"
-					}`)
+	resp, teardown, _ := runQuery(t, func(bucket string) string {
+		return fmt.Sprintf(`{
+			"Bucket": "%s"
+		}`, bucket)
+	})
 	defer teardown(t)
 	assert.Equal(t, backend.ErrDataResponse(backend.StatusBadRequest, "missing bucket or entry"), resp.Responses["A"])
 }
 
 func TestQueryDataBucketNotFound(t *testing.T) {
-	resp, teardown := runQuery(t, `{
-						"Bucket": "missing-bucket",
-						"Entry": "entity1"
-					}`)
+	resp, teardown, _ := runQuery(t, func(string) string {
+		return `{
+			"Bucket": "missing-bucket",
+			"Entry": "entity1"
+		}`
+	})
 	defer teardown(t)
 	assert.Equal(t, backend.ErrDataResponse(backend.StatusNotFound, "bucket 'missing-bucket' not found"), resp.Responses["A"])
 }
 
 func TestQueryDataEntryNotFound(t *testing.T) {
-	resp, teardown := runQuery(t, `{
-						"Bucket": "test-bucket",
-						"Entry": "missing-entity"
-					}`)
+	resp, teardown, bucket := runQuery(t, func(bucket string) string {
+		return fmt.Sprintf(`{
+			"Bucket": "%s",
+			"Entry": "missing-entity"
+		}`, bucket)
+	})
 	defer teardown(t)
-	assert.Equal(t, backend.ErrDataResponse(backend.StatusNotFound, "Entry 'missing-entity' not found in bucket 'test-bucket'"), resp.Responses["A"])
+	assert.Equal(t, backend.ErrDataResponse(backend.StatusNotFound, fmt.Sprintf("Entry 'missing-entity' not found in bucket '%s'", bucket)), resp.Responses["A"])
 
 }
 
@@ -213,11 +229,13 @@ func findByName(resp *backend.QueryDataResponse, name string) int {
 }
 
 func TestQueryData_ContentMode_ParsesJSON(t *testing.T) {
-	resp, teardown := runQuery(t, `{
-		"Bucket": "test-bucket",
-		"Entry": "entity1",
-		"Options": { "Mode": "ContentOnly" }
-	}`)
+	resp, teardown, _ := runQuery(t, func(bucket string) string {
+		return fmt.Sprintf(`{
+			"Bucket": "%s",
+			"Entry": "entity1",
+			"Options": { "Mode": "ContentOnly" }
+		}`, bucket)
+	})
 	defer teardown(t)
 
 	dr := resp.Responses["A"]
@@ -247,11 +265,13 @@ func TestQueryData_ContentMode_ParsesJSON(t *testing.T) {
 }
 
 func TestQueryData_BothMode_LabelsAndJSON(t *testing.T) {
-	resp, teardown := runQuery(t, `{
-		"Bucket": "test-bucket",
-		"Entry": "entity1",
-		"Options": { "Mode": "LabelAndContent" }
-	}`)
+	resp, teardown, _ := runQuery(t, func(bucket string) string {
+		return fmt.Sprintf(`{
+			"Bucket": "%s",
+			"Entry": "entity1",
+			"Options": { "Mode": "LabelAndContent" }
+		}`, bucket)
+	})
 	defer teardown(t)
 
 	dr := resp.Responses["A"]
@@ -274,11 +294,13 @@ func TestQueryData_BothMode_LabelsAndJSON(t *testing.T) {
 }
 
 func TestQueryData_LabelsMode_IgnoresJSON(t *testing.T) {
-	resp, teardown := runQuery(t, `{
-		"Bucket": "test-bucket",
-		"Entry": "entity1",
-		"Options": { "Mode": "LabelOnly" }
-	}`)
+	resp, teardown, _ := runQuery(t, func(bucket string) string {
+		return fmt.Sprintf(`{
+			"Bucket": "%s",
+			"Entry": "entity1",
+			"Options": { "Mode": "LabelOnly" }
+		}`, bucket)
+	})
 	defer teardown(t)
 
 	dr := resp.Responses["A"]
@@ -298,11 +320,13 @@ func TestQueryData_LabelsMode_IgnoresJSON(t *testing.T) {
 }
 
 func TestQueryData_ContentMode_PreservesJSONStringTypes(t *testing.T) {
-	resp, teardown := runQuery(t, `{
-		"Bucket": "test-bucket",
-		"Entry": "entity1",
-		"Options": { "Mode": "ContentOnly" }
-	}`)
+	resp, teardown, _ := runQuery(t, func(bucket string) string {
+		return fmt.Sprintf(`{
+			"Bucket": "%s",
+			"Entry": "entity1",
+			"Options": { "Mode": "ContentOnly" }
+		}`, bucket)
+	})
 	defer teardown(t)
 
 	dr := resp.Responses["A"]
