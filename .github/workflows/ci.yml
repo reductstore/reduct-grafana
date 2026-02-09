@@ -119,6 +119,19 @@ jobs:
           ARCHIVE: ${{ steps.metadata.outputs.archive }}
           PLUGIN_ID: ${{ steps.metadata.outputs.plugin-id }}
 
+      - name: Validate plugin (osv-scanner)
+        run: |
+          docker run --pull=always --rm \
+            -v "$PWD:/src" \
+            -w /src \
+            grafana/plugin-validator-cli \
+              -strict \
+              -analyzer=osv-scanner \
+              -sourceCodeUri file:///src \
+              "${ARCHIVE}"
+        env:
+          ARCHIVE: ${{ steps.metadata.outputs.archive }}
+
       - name: Check plugin.json
         run: |
           docker run --pull=always \

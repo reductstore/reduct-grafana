@@ -9,6 +9,10 @@
 - Replaced local Monaco completion provider with `@reductstore/reduct-query-monaco` package, [PR-33](https://github.com/reductstore/reduct-grafana/pull/33)
 - Update reduct-go to v1.18.0, [PR-35](https://github.com/reductstore/reduct-grafana/pull/35)
 
+### Fixed
+
+- Resolve high-severity dependency vulnerability (`qs`, CVE-2025-15284), [PR-37](https://github.com/reductstore/reduct-grafana/pull/37)
+
 ## [1.0.0] - 2025-12-11
 
 ### Added
