@@ -12,7 +12,7 @@ RUN mkdir -p /data/plugins /data/log && \
     chown -R 472:472 /data
 
 # ReductStore plugin version and ID
-ARG TAG=v1.0.0
+ARG TAG=v1.0.1
 ARG PLUGIN_ID=reductstore-datasource
 
 # Install ReductStore plugin into /data/plugins

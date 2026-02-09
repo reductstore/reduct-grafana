@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-02-09
+
 ### Changed
 
 - Replaced local Monaco completion provider with `@reductstore/reduct-query-monaco` package, [PR-33](https://github.com/reductstore/reduct-grafana/pull/33)
