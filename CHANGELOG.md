@@ -8,6 +8,7 @@
 
 - Publish Docker image in release workflow and update Dockerfile release download source, [PR-39](https://github.com/reductstore/reduct-grafana/pull/39)
 - Switch Docker image runtime to standard `grafana/grafana` behavior and standard plugin path, [PR-40](https://github.com/reductstore/reduct-grafana/pull/40)
+- Add release workflow sanity check that boots the image and verifies datasource plugin loading before push, [PR-40](https://github.com/reductstore/reduct-grafana/pull/40)
 
 ### Fixed
 
