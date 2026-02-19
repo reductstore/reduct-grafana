@@ -7,7 +7,12 @@
 ### Changed
 
 - Publish Docker image in release workflow and update Dockerfile release download source, [PR-39](https://github.com/reductstore/reduct-grafana/pull/39)
-- Finalize v1.0.2 changelog and release metadata, [PR-40](https://github.com/reductstore/reduct-grafana/pull/40)
+- Switch Docker image runtime to standard `grafana/grafana` behavior and standard plugin path, [PR-40](https://github.com/reductstore/reduct-grafana/pull/40)
+- Add release workflow sanity check that boots the image and verifies datasource plugin loading before push, [PR-40](https://github.com/reductstore/reduct-grafana/pull/40)
+
+### Fixed
+
+- Ensure Linux plugin backend binaries are executable in the Docker image to prevent backend startup `permission denied`, [PR-40](https://github.com/reductstore/reduct-grafana/pull/40)
 
 ## [1.0.1] - 2026-02-09
 
