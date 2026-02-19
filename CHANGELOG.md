@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Publish Docker image in release workflow and update Dockerfile release download source, [PR-39](https://github.com/reductstore/reduct-grafana/pull/39)
+
 ## [1.0.1] - 2026-02-09
 
 ### Changed
