@@ -1,4 +1,4 @@
-FROM docker.io/ubuntu/grafana:12-22.04
+FROM docker.io/ubuntu/grafana:12-24.04
 
 USER root
 
