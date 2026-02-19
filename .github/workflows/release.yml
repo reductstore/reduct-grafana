@@ -12,8 +12,8 @@ permissions: read-all
 jobs:
   release:
     outputs:
-      plugin-id: ${{ steps.metadata.outputs.plugin-id }}
-      plugin-version: ${{ steps.metadata.outputs.plugin-version }}
+      plugin-id: ${{ steps.build-plugin.outputs.plugin-id }}
+      plugin-version: ${{ steps.build-plugin.outputs.plugin-version }}
     permissions:
       contents: write
     runs-on: ubuntu-latest
@@ -22,7 +22,8 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: grafana/plugin-actions/build-plugin@main # zizmor: ignore[unpinned-uses] provided by grafana
+      - id: build-plugin
+        uses: grafana/plugin-actions/build-plugin@main # zizmor: ignore[unpinned-uses] provided by grafana
         with:
           go-version: '^1.24.11'
 
@@ -34,23 +35,15 @@ jobs:
         # Usage of GRAFANA_API_KEY is deprecated, prefer `policy_token` option above
         #grafana_token: $
 
-      - name: Resolve plugin metadata
-        id: metadata
-        run: |
-          PLUGIN_ID="$(jq -r '.id' dist/plugin.json)"
-          PLUGIN_VERSION="$(jq -r '.info.version' dist/plugin.json)"
-          echo "plugin-id=${PLUGIN_ID}" >> "$GITHUB_OUTPUT"
-          echo "plugin-version=${PLUGIN_VERSION}" >> "$GITHUB_OUTPUT"
-
       - name: Prepare Docker plugin artifact
         run: |
-          mkdir -p docker-artifact/dist/${{ steps.metadata.outputs.plugin-id }}
-          cp -R dist/. docker-artifact/dist/${{ steps.metadata.outputs.plugin-id }}/
+          mkdir -p docker-artifact/dist/${{ steps.build-plugin.outputs.plugin-id }}
+          cp -R ${{ steps.build-plugin.outputs.plugin-id }}/. docker-artifact/dist/${{ steps.build-plugin.outputs.plugin-id }}/
 
       - name: Upload Docker plugin artifact
         uses: actions/upload-artifact@v4
         with:
-          name: docker-plugin-${{ steps.metadata.outputs.plugin-version }}
+          name: docker-plugin-${{ steps.build-plugin.outputs.plugin-version }}
           path: docker-artifact/dist
           retention-days: 7
 
