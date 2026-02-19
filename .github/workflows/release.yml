@@ -105,6 +105,45 @@ jobs:
             type=semver,pattern={{major}},value=${{ github.ref_name }}
             type=raw,value=latest
 
+      - name: Build image for sanity test
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          load: true
+          tags: reduct/grafana:release-sanity
+
+      - name: Sanity test image startup and plugin loading
+        run: |
+          set -euo pipefail
+
+          cid=""
+          cleanup() {
+            if [ -n "${cid}" ]; then
+              docker logs "${cid}" || true
+              docker rm -f "${cid}" >/dev/null 2>&1 || true
+            fi
+          }
+          trap cleanup EXIT
+
+          cid=$(docker run -d -p 13000:3000 reduct/grafana:release-sanity)
+
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:13000/api/health >/dev/null 2>&1; then
+              break
+            fi
+            sleep 1
+          done
+
+          curl -fsS http://127.0.0.1:13000/api/health
+          curl -fsS -u admin:admin http://127.0.0.1:13000/api/plugins/reductstore-datasource/settings | grep -q '"id":"reductstore-datasource"'
+
+          if docker logs "${cid}" 2>&1 | grep -q "Could not start plugin backend"; then
+            echo "Plugin backend startup failed"
+            exit 1
+          fi
+
       - name: Build and push image
         uses: docker/build-push-action@v6
         with:
