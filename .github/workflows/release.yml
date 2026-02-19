@@ -11,6 +11,9 @@ permissions: read-all
 
 jobs:
   release:
+    outputs:
+      plugin-id: ${{ steps.metadata.outputs.plugin-id }}
+      plugin-version: ${{ steps.metadata.outputs.plugin-version }}
     permissions:
       contents: write
     runs-on: ubuntu-latest
@@ -31,6 +34,26 @@ jobs:
         # Usage of GRAFANA_API_KEY is deprecated, prefer `policy_token` option above
         #grafana_token: $
 
+      - name: Resolve plugin metadata
+        id: metadata
+        run: |
+          PLUGIN_ID="$(jq -r '.id' dist/plugin.json)"
+          PLUGIN_VERSION="$(jq -r '.info.version' dist/plugin.json)"
+          echo "plugin-id=${PLUGIN_ID}" >> "$GITHUB_OUTPUT"
+          echo "plugin-version=${PLUGIN_VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare Docker plugin artifact
+        run: |
+          mkdir -p docker-artifact/dist/${{ steps.metadata.outputs.plugin-id }}
+          cp -R dist/. docker-artifact/dist/${{ steps.metadata.outputs.plugin-id }}/
+
+      - name: Upload Docker plugin artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-plugin-${{ steps.metadata.outputs.plugin-version }}
+          path: docker-artifact/dist
+          retention-days: 7
+
   publish-docker:
     name: Publish Docker image
     needs: [release]
@@ -41,6 +64,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+
+      - name: Download built plugin artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-plugin-${{ needs.release.outputs.plugin-version }}
+          path: .
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -83,6 +112,3 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            TAG=${{ github.ref_name }}
-            GITHUB_REPOSITORY=${{ github.repository }}
