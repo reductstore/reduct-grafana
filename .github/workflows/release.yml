@@ -67,7 +67,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: docker.io/${{ secrets.DOCKER_USERNAME }}/${{ github.event.repository.name }}
+          images: docker.io/reduct/grafana
           tags: |
             type=raw,value=plugin-${{ steps.versions.outputs.plugin_version }}-grafana-${{ steps.versions.outputs.grafana_version }}
             type=semver,pattern={{version}},value=${{ github.ref_name }}
