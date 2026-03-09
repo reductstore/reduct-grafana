@@ -17,7 +17,8 @@ export function QueryHeader({ query, datasource, onRunQuery }: QueryHeaderProps)
   const [serverInfo, setServerInfo] = useState<ServerInfo | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const isQueryRunnable = !!(query.bucket && query.entry);
+  const hasEntries = (query.entries && query.entries.length > 0) || !!query.entry;
+  const isQueryRunnable = !!(query.bucket && hasEntries);
 
   useEffect(() => {
     setLoading(true);

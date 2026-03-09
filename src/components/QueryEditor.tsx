@@ -1,10 +1,11 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { InlineField, InlineFieldRow } from '@grafana/ui';
 import { getBackendSrv } from '@grafana/runtime';
 import { QueryEditorProps, SelectableValue } from '@grafana/data';
 import { DataMode, ReductQuery, ReductSourceOptions } from '../types';
 import { DataSource } from '../datasource';
 import { CompatibleSelect } from './CompatibleSelect';
+import { EntryInput } from './EntryInput';
 import { JsonEditor } from './json-editor/JsonEditor';
 import { QueryHeader } from './QueryHeader';
 
@@ -15,7 +16,7 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
   const [entries, setEntries] = useState<Array<SelectableValue<string>>>([]);
 
   const bucket = query.bucket;
-  const entry = query.entry;
+  const queryEntries = useMemo(() => query.entries ?? (query.entry ? [query.entry] : []), [query.entries, query.entry]);
   const mode = query.options?.mode ?? DataMode.LabelOnly;
 
   const modeOptions: Array<SelectableValue<DataMode>> = [
@@ -63,17 +64,17 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
       });
   }, [bucket, datasource.id]);
 
-  // Helper to trigger Grafana update + run query when valid
   const updateQuery = useCallback(
-    (newBucket: string | undefined, newEntry: string | undefined, newMode: DataMode) => {
+    (newBucket: string | undefined, newEntries: string[], newMode: DataMode) => {
       onChange({
         ...query,
         bucket: newBucket,
-        entry: newEntry,
+        entry: undefined,
+        entries: newEntries,
         options: { ...(query.options ?? {}), mode: newMode },
       });
 
-      if (newBucket && newEntry) {
+      if (newBucket && newEntries.length > 0) {
         onRunQuery();
       }
     },
@@ -82,30 +83,31 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
 
   const onBucketChange = useCallback(
     (v?: SelectableValue<string>) => {
-      updateQuery(v?.value, undefined, mode);
+      updateQuery(v?.value, [], mode);
     },
     [mode, updateQuery]
   );
 
-  const onEntryChange = useCallback(
-    (v?: SelectableValue<string>) => {
-      updateQuery(bucket, v?.value, mode);
+  const onEntriesChange = useCallback(
+    (newEntries: string[]) => {
+      updateQuery(bucket, newEntries, mode);
     },
     [bucket, mode, updateQuery]
   );
 
   const onModeChange = useCallback(
     (opt: SelectableValue<DataMode>) => {
-      updateQuery(bucket, entry, opt?.value ?? DataMode.LabelOnly);
+      updateQuery(bucket, queryEntries, opt?.value ?? DataMode.LabelOnly);
     },
-    [bucket, entry, updateQuery]
+    [bucket, queryEntries, updateQuery]
   );
 
   // Handle changes from JSON editor
   const handleEditorChange = useCallback(
     (newQuery: ReductQuery, process: boolean) => {
       onChange(newQuery);
-      if (process && newQuery.bucket && newQuery.entry) {
+      const hasEntries = (newQuery.entries && newQuery.entries.length > 0) || !!newQuery.entry;
+      if (process && newQuery.bucket && hasEntries) {
         onRunQuery();
       }
     },
@@ -124,13 +126,8 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
             onChange={onBucketChange}
           />
         </InlineField>
-        <InlineField label="Entry" tooltip="The entry within the bucket to query" grow>
-          <CompatibleSelect
-            testId="entry-picker"
-            options={entries}
-            value={entries.find((e) => e.value === entry)}
-            onChange={onEntryChange}
-          />
+        <InlineField label="Entry" tooltip="Entry name(s) or wildcard pattern (e.g., sensor-*)" grow>
+          <EntryInput testId="entry-picker" options={entries} values={queryEntries} onChange={onEntriesChange} />
         </InlineField>
         <InlineField label="Scope" tooltip="Controls what the query returns: labels only, content only, or both" grow>
           <CompatibleSelect
