@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- Add support for multi-entry API with wildcard patterns and multi-select, [PR-42](https://github.com/reductstore/reduct-grafana/pull/42)
+
 ## [1.0.2] - 2026-02-19
 
 ### Changed
