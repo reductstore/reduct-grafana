@@ -182,7 +182,7 @@ func TestQueryDataNoBucket(t *testing.T) {
 		}`
 	})
 	defer teardown(t)
-	assert.Equal(t, backend.ErrDataResponse(backend.StatusBadRequest, "missing bucket or entry"), resp.Responses["A"])
+	assert.Equal(t, backend.ErrDataResponse(backend.StatusBadRequest, "missing bucket or entries"), resp.Responses["A"])
 }
 
 func TestQueryDataNoEntry(t *testing.T) {
@@ -192,7 +192,7 @@ func TestQueryDataNoEntry(t *testing.T) {
 		}`, bucket)
 	})
 	defer teardown(t)
-	assert.Equal(t, backend.ErrDataResponse(backend.StatusBadRequest, "missing bucket or entry"), resp.Responses["A"])
+	assert.Equal(t, backend.ErrDataResponse(backend.StatusBadRequest, "missing bucket or entries"), resp.Responses["A"])
 }
 
 func TestQueryDataBucketNotFound(t *testing.T) {
@@ -207,15 +207,15 @@ func TestQueryDataBucketNotFound(t *testing.T) {
 }
 
 func TestQueryDataEntryNotFound(t *testing.T) {
-	resp, teardown, bucket := runQuery(t, func(bucket string) string {
+	resp, teardown, _ := runQuery(t, func(bucket string) string {
 		return fmt.Sprintf(`{
 			"Bucket": "%s",
 			"Entry": "missing-entity"
 		}`, bucket)
 	})
 	defer teardown(t)
-	assert.Equal(t, backend.ErrDataResponse(backend.StatusNotFound, fmt.Sprintf("Entry 'missing-entity' not found in bucket '%s'", bucket)), resp.Responses["A"])
-
+	assert.Nil(t, resp.Responses["A"].Error)
+	assert.Empty(t, resp.Responses["A"].Frames)
 }
 
 func findByName(resp *backend.QueryDataResponse, name string) int {

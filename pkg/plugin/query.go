@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -44,16 +45,21 @@ func (d *ReductDatasource) QueryData(ctx context.Context, req *backend.QueryData
 			"ref_id", q.RefID,
 			"bucket", qm.Bucket,
 			"entry", qm.Entry,
+			"entries", qm.Entries,
 			"mode", qm.Options.Mode,
 			"from", q.TimeRange.From.UTC(),
 			"to", q.TimeRange.To.UTC(),
 		)
 
-		// Validate required fields
-		if qm.Bucket == "" || qm.Entry == "" {
+		entries := qm.Entries
+		if len(entries) == 0 && qm.Entry != "" {
+			entries = []string{qm.Entry}
+		}
+
+		if qm.Bucket == "" || len(entries) == 0 {
 			return &backend.QueryDataResponse{
 				Responses: map[string]backend.DataResponse{
-					q.RefID: backend.ErrDataResponse(backend.StatusBadRequest, "missing bucket or entry"),
+					q.RefID: backend.ErrDataResponse(backend.StatusBadRequest, "missing bucket or entries"),
 				},
 			}, nil
 		}
@@ -84,7 +90,7 @@ func (d *ReductDatasource) QueryData(ctx context.Context, req *backend.QueryData
 		if !to.IsZero() {
 			options.WithStop(to.UnixMicro())
 		}
-		res := d.query(ctx, req.PluginContext, qm.Bucket, qm.Entry, options.Build(), mode)
+		res := d.query(ctx, req.PluginContext, qm.Bucket, entries, options.Build(), mode)
 		// save the response in a hashmap
 		// based on with RefID as identifier
 		response.Responses[q.RefID] = res
@@ -97,7 +103,7 @@ func (d *ReductDatasource) query(
 	ctx context.Context,
 	pCtx backend.PluginContext,
 	bucketName string,
-	entry string,
+	entries []string,
 	options reductgo.QueryOptions,
 	mode ReductMode,
 ) backend.DataResponse {
@@ -108,7 +114,7 @@ func (d *ReductDatasource) query(
 		errors.As(err, &apiErr)
 		return backend.ErrDataResponse(backend.Status(apiErr.Status), apiErr.Message)
 	}
-	records, err := bucket.Query(ctx, entry, &options)
+	records, err := bucket.QueryMany(ctx, entries, &options)
 	if err != nil {
 		log.DefaultLogger.Error("Failed to query", "error", err)
 		var apiErr model.APIError
@@ -136,9 +142,13 @@ func getFrames(records <-chan *reductgo.ReadableRecord, mode ReductMode) []*data
 	}
 
 	result := make([]*data.Frame, 0, len(frames))
-	for _, frame := range frames {
-		// Append timestamp field if not already present
-		result = append(result, frame)
+	keys := make([]string, 0, len(frames))
+	for k := range frames {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		result = append(result, frames[k])
 	}
 	return result
 }

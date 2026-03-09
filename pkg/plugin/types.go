@@ -21,5 +21,6 @@ type reductOptions struct {
 type reductQuery struct {
 	Bucket  string        `json:"bucket"`
 	Entry   string        `json:"entry"`
+	Entries []string      `json:"entries"`
 	Options reductOptions `json:"options"`
 }
