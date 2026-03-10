@@ -73,7 +73,9 @@ describe('CompatibleSelect', () => {
     const onChange = jest.fn();
     implementations.select = () => null;
 
-    render(<CompatibleSelect value={staticOptions[0]} options={staticOptions} onChange={onChange} testId="test-select" />);
+    render(
+      <CompatibleSelect value={staticOptions[0]} options={staticOptions} onChange={onChange} testId="test-select" />
+    );
 
     const button = screen.getByTestId('test-select');
     expect(button.tagName).toBe('BUTTON');
@@ -86,7 +88,9 @@ describe('CompatibleSelect', () => {
     const onChange = jest.fn();
     implementations.combobox = undefined;
 
-    render(<CompatibleSelect value={staticOptions[0]} options={staticOptions} onChange={onChange} testId="test-select" />);
+    render(
+      <CompatibleSelect value={staticOptions[0]} options={staticOptions} onChange={onChange} testId="test-select" />
+    );
 
     const select = screen.getByTestId('test-select');
     expect(select.tagName).toBe('SELECT');

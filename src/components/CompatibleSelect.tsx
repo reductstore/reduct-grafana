@@ -47,13 +47,7 @@ export function CompatibleSelect<T>({ value, options = [], onChange, testId, loa
           loading={loading}
         />
       ) : (
-        <Select
-          data-testid={testId}
-          value={value}
-          options={options}
-          onChange={onChange}
-          isLoading={loading}
-        />
+        <Select data-testid={testId} value={value} options={options} onChange={onChange} isLoading={loading} />
       )}
     </div>
   );
