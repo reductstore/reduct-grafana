@@ -121,27 +121,27 @@ func TestQueryData(t *testing.T) {
 
 	assert.Equal(t, 4, len(resp.Responses["A"].Frames))
 
-	idx := findByName(&resp, "bool-label")
+	idx := findByName(&resp, "entity1/bool-label")
 	assert.Equal(t, 10, resp.Responses["A"].Frames[idx].Rows())
-	assert.Equal(t, "bool-label", resp.Responses["A"].Frames[idx].Name)
+	assert.Equal(t, "entity1/bool-label", resp.Responses["A"].Frames[idx].Name)
 	assert.Equal(t, true, resp.Responses["A"].Frames[idx].Fields[1].At(0))
 	assert.Equal(t, false, resp.Responses["A"].Frames[idx].Fields[1].At(9))
 
-	idx = findByName(&resp, "int-label")
+	idx = findByName(&resp, "entity1/int-label")
 	assert.Equal(t, 10, resp.Responses["A"].Frames[idx].Rows())
-	assert.Equal(t, "int-label", resp.Responses["A"].Frames[idx].Name)
+	assert.Equal(t, "entity1/int-label", resp.Responses["A"].Frames[idx].Name)
 	assert.Equal(t, int64(0), resp.Responses["A"].Frames[idx].Fields[1].At(0))
 	assert.Equal(t, int64(9), resp.Responses["A"].Frames[idx].Fields[1].At(9))
 
-	idx = findByName(&resp, "float-label")
+	idx = findByName(&resp, "entity1/float-label")
 	assert.Equal(t, 10, resp.Responses["A"].Frames[idx].Rows())
-	assert.Equal(t, "float-label", resp.Responses["A"].Frames[idx].Name)
+	assert.Equal(t, "entity1/float-label", resp.Responses["A"].Frames[idx].Name)
 	assert.Equal(t, 0.5, resp.Responses["A"].Frames[idx].Fields[1].At(0))
 	assert.Equal(t, 9.5, resp.Responses["A"].Frames[idx].Fields[1].At(9))
 
-	idx = findByName(&resp, "string-label")
+	idx = findByName(&resp, "entity1/string-label")
 	assert.Equal(t, 10, resp.Responses["A"].Frames[idx].Rows())
-	assert.Equal(t, "string-label", resp.Responses["A"].Frames[idx].Name)
+	assert.Equal(t, "entity1/string-label", resp.Responses["A"].Frames[idx].Name)
 	assert.Equal(t, "label-0", resp.Responses["A"].Frames[idx].Fields[1].At(0))
 	assert.Equal(t, "label-9", resp.Responses["A"].Frames[idx].Fields[1].At(9))
 }
@@ -162,7 +162,7 @@ func TestQueryDataWithThen(t *testing.T) {
 	assert.Equal(t, nil, resp.Responses["A"].Error)
 	assert.Equal(t, 1, len(resp.Responses["A"].Frames))
 
-	assert.Equal(t, "int-label", resp.Responses["A"].Frames[0].Name)
+	assert.Equal(t, "entity1/int-label", resp.Responses["A"].Frames[0].Name)
 	assert.Equal(t, 10, resp.Responses["A"].Frames[0].Rows())
 }
 
@@ -241,24 +241,25 @@ func TestQueryData_ContentMode_ParsesJSON(t *testing.T) {
 	dr := resp.Responses["A"]
 	assert.Nil(t, dr.Error)
 
-	idx := findByName(&resp, "$.temp")
+	// Frame names are now entry-prefixed
+	idx := findByName(&resp, "entity1/$.temp")
 	if idx == -1 {
-		t.Fatalf("frame $.temp not found")
+		t.Fatalf("frame entity1/$.temp not found")
 	}
 	assert.Equal(t, 10, dr.Frames[idx].Rows())
 	assert.Equal(t, 0.25, dr.Frames[idx].Fields[1].At(0))
 	assert.Equal(t, 9.25, dr.Frames[idx].Fields[1].At(9))
 
-	idx = findByName(&resp, "$.flag")
+	idx = findByName(&resp, "entity1/$.flag")
 	if idx == -1 {
-		t.Fatalf("frame $.flag not found")
+		t.Fatalf("frame entity1/$.flag not found")
 	}
 	assert.Equal(t, true, dr.Frames[idx].Fields[1].At(0))
 	assert.Equal(t, false, dr.Frames[idx].Fields[1].At(9))
 
-	idx = findByName(&resp, "$.meta.seq")
+	idx = findByName(&resp, "entity1/$.meta.seq")
 	if idx == -1 {
-		t.Fatalf("frame $.meta.seq not found")
+		t.Fatalf("frame entity1/$.meta.seq not found")
 	}
 	assert.Equal(t, float64(0), dr.Frames[idx].Fields[1].At(0))
 	assert.Equal(t, float64(9), dr.Frames[idx].Fields[1].At(9))
@@ -277,17 +278,18 @@ func TestQueryData_BothMode_LabelsAndJSON(t *testing.T) {
 	dr := resp.Responses["A"]
 	assert.Nil(t, dr.Error)
 
-	idxLabel := findByName(&resp, "int-label")
+	// Frame names are now entry-prefixed
+	idxLabel := findByName(&resp, "entity1/int-label")
 	if idxLabel == -1 {
-		t.Fatalf("label frame 'int-label' not found")
+		t.Fatalf("label frame 'entity1/int-label' not found")
 	}
 	assert.Equal(t, 10, dr.Frames[idxLabel].Rows())
 	assert.Equal(t, int64(0), dr.Frames[idxLabel].Fields[1].At(0))
 	assert.Equal(t, int64(9), dr.Frames[idxLabel].Fields[1].At(9))
 
-	idxJSON := findByName(&resp, "$.temp")
+	idxJSON := findByName(&resp, "entity1/$.temp")
 	if idxJSON == -1 {
-		t.Fatalf("json frame '$.temp' not found")
+		t.Fatalf("json frame 'entity1/$.temp' not found")
 	}
 	assert.Equal(t, 0.25, dr.Frames[idxJSON].Fields[1].At(0))
 	assert.Equal(t, 9.25, dr.Frames[idxJSON].Fields[1].At(9))
@@ -306,13 +308,15 @@ func TestQueryData_LabelsMode_IgnoresJSON(t *testing.T) {
 	dr := resp.Responses["A"]
 	assert.Nil(t, dr.Error)
 
-	assert.Equal(t, -1, findByName(&resp, "$.temp"))
-	assert.Equal(t, -1, findByName(&resp, "$.flag"))
-	assert.Equal(t, -1, findByName(&resp, "$.meta.seq"))
+	// JSON frames should not exist (still checking with entry prefix)
+	assert.Equal(t, -1, findByName(&resp, "entity1/$.temp"))
+	assert.Equal(t, -1, findByName(&resp, "entity1/$.flag"))
+	assert.Equal(t, -1, findByName(&resp, "entity1/$.meta.seq"))
 
-	idx := findByName(&resp, "string-label")
+	// Frame names are now entry-prefixed
+	idx := findByName(&resp, "entity1/string-label")
 	if idx == -1 {
-		t.Fatalf("label frame 'string-label' not found")
+		t.Fatalf("label frame 'entity1/string-label' not found")
 	}
 	assert.Equal(t, 10, dr.Frames[idx].Rows())
 	assert.Equal(t, "label-0", dr.Frames[idx].Fields[1].At(0))
@@ -332,16 +336,16 @@ func TestQueryData_ContentMode_PreservesJSONStringTypes(t *testing.T) {
 	dr := resp.Responses["A"]
 	assert.Nil(t, dr.Error)
 
-	idx := findByName(&resp, "$.str_number")
+	idx := findByName(&resp, "entity1/$.str_number")
 	if idx == -1 {
-		t.Fatalf("frame $.str_number not found")
+		t.Fatalf("frame entity1/$.str_number not found")
 	}
 	assert.Equal(t, 10, dr.Frames[idx].Rows())
 	assert.Equal(t, "123", dr.Frames[idx].Fields[1].At(0))
 
-	idx = findByName(&resp, "$.source_id")
+	idx = findByName(&resp, "entity1/$.source_id")
 	if idx == -1 {
-		t.Fatalf("frame $.source_id not found")
+		t.Fatalf("frame entity1/$.source_id not found")
 	}
 	assert.Equal(t, 10, dr.Frames[idx].Rows())
 	assert.Equal(t, "00000001_000", dr.Frames[idx].Fields[1].At(0))

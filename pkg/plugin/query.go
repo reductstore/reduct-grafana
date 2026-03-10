@@ -153,27 +153,29 @@ func getFrames(records <-chan *reductgo.ReadableRecord, mode ReductMode) []*data
 	return result
 }
 
-// processContent processes the content of a record and appends it to the frames.
+// processLabels processes the labels of a record and appends them to the frames.
 func processLabels(frames map[string]*data.Frame, kindMap map[string]reflect.Kind, record *reductgo.ReadableRecord) {
+	entryName := record.Entry()
 	for key, labelValue := range record.Labels() {
+		frameKey := entryName + "/" + key
 
 		strValue := fmt.Sprintf("%v", labelValue)
-		initialType, ok := kindMap[key]
+		initialType, ok := kindMap[frameKey]
 		value := parseValue(strValue)
 
 		if !ok {
 			kind := reflect.TypeOf(value).Kind()
-			kindMap[key] = kind
+			kindMap[frameKey] = kind
 			initialType = kind
 		}
 
 		currentType := reflect.TypeOf(value).Kind()
 		if currentType != initialType {
 			// If the type has changed, we need to coerce the value to the initial type
-			log.DefaultLogger.Debug("Type change detected", "key", key, "from", initialType, "to", currentType)
+			log.DefaultLogger.Debug("Type change detected", "key", frameKey, "from", initialType, "to", currentType)
 			val, err := coerceToKind(strValue, initialType)
 			if err != nil {
-				log.DefaultLogger.Error("Failed to coerce value", "key", key, "value", strValue, "error", err)
+				log.DefaultLogger.Error("Failed to coerce value", "key", frameKey, "value", strValue, "error", err)
 				continue
 			}
 			value = val
@@ -181,15 +183,15 @@ func processLabels(frames map[string]*data.Frame, kindMap map[string]reflect.Kin
 
 		switch v := value.(type) {
 		case int64:
-			appendValue(frames, key, record, v)
+			appendValue(frames, frameKey, record, v)
 		case float64:
-			appendValue(frames, key, record, v)
+			appendValue(frames, frameKey, record, v)
 		case bool:
-			appendValue(frames, key, record, v)
+			appendValue(frames, frameKey, record, v)
 		case string:
-			appendValue(frames, key, record, v)
+			appendValue(frames, frameKey, record, v)
 		default:
-			appendValue(frames, key, record, strValue)
+			appendValue(frames, frameKey, record, strValue)
 		}
 	}
 }
@@ -217,19 +219,22 @@ func processContent(
 	flat := map[string]any{}
 	flattenJSON("$", v, flat)
 
+	entryName := record.Entry()
 	for k, val := range flat {
+		// Create entry-prefixed frame key to separate time series per entry
+		frameKey := entryName + "/" + k
 		switch v := val.(type) {
 		case int64:
-			appendValue(frames, k, record, v)
+			appendValue(frames, frameKey, record, v)
 		case float64:
-			appendValue(frames, k, record, v)
+			appendValue(frames, frameKey, record, v)
 		case bool:
-			appendValue(frames, k, record, v)
+			appendValue(frames, frameKey, record, v)
 		case string:
-			appendValue(frames, k, record, v)
+			appendValue(frames, frameKey, record, v)
 		default:
 			str := fmt.Sprintf("%v", val)
-			appendValue(frames, k, record, str)
+			appendValue(frames, frameKey, record, str)
 		}
 	}
 }
