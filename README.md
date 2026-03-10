@@ -45,8 +45,8 @@ npm run lint:fix           # ESLint with auto-fix
 npm run test:ci            # Frontend unit tests
 npm run e2e                # Playwright e2e tests
 
-gofmt -s -w .              # Go code formatting
-mage coverage              # Backend unit tests with coverage
+gofmt -s -w .                                  # Go code formatting
+go test ./pkg/plugin -v -cover                 # Backend unit tests with coverage
 go test -tags=integration ./pkg/... -v -cover  # Backend integration tests
 ```
 

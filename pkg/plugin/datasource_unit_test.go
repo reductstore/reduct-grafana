@@ -42,7 +42,7 @@ func TestNewDatasource(t *testing.T) {
 		instance, err := NewDatasource(context.Background(), newDatasourceSettings(`{"serverURL":"http://x"}`))
 		require.Error(t, err)
 		assert.Nil(t, instance)
-		assert.Equal(t, "get server info failed: auth fail", err.Error())
+		assert.Equal(t, "Authentication failed or server error", err.Error())
 	})
 
 	t.Run("supported server version", func(t *testing.T) {

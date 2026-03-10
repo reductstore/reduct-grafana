@@ -49,7 +49,7 @@ func NewDatasource(ctx context.Context, settings backend.DataSourceInstanceSetti
 	serverInfo, err := client.GetInfo(ctx)
 	if err != nil {
 		log.DefaultLogger.Error("get server info failed", "error", err)
-		return nil, fmt.Errorf("get server info failed: %w", err)
+		return nil, fmt.Errorf("Authentication failed or server error")
 	}
 
 	if err := validateServerVersion(serverInfo.Version); err != nil {
