@@ -87,10 +87,25 @@ test.describe('ReductStore JSON Toolbox', () => {
 
     await picker(page, 'Entry').click();
     await clickOption(page, 'entry-picker-option-test-entry', 'test-entry');
+    await page.locator('.monaco-editor[role="code"]').waitFor({ state: 'visible', timeout: 10000 });
 
-    const editor = page.getByRole('textbox', { name: /editor content/i });
     const requestPromise = page.waitForRequest('**/validateCondition');
-    await editor.fill('{ "&sensor": { "$eq": "ok" } }');
+    await page.evaluate(() => {
+      const editor = (window as any).monaco?.editor?.getEditors?.()?.[0];
+      if (editor) {
+        const model = editor.getModel();
+        if (model) {
+          const fullRange = model.getFullModelRange();
+          editor.executeEdits('test', [
+            {
+              range: fullRange,
+              text: '{ "&sensor": { "$eq": "ok" } }',
+              forceMoveMarkers: true,
+            },
+          ]);
+        }
+      }
+    });
 
     const req = await requestPromise;
     const body = req.postDataJSON();
@@ -107,10 +122,26 @@ test.describe('ReductStore JSON Toolbox', () => {
     await picker(page, 'Entry').click();
     await clickOption(page, 'entry-picker-option-test-entry', 'test-entry');
 
-    const editor = page.getByRole('textbox', { name: /editor content/i });
+    await page.locator('.monaco-editor[role="code"]').waitFor({ state: 'visible', timeout: 10000 });
+
     const requestPromise = page.waitForRequest('**/validateCondition');
 
-    await editor.fill('not json at all');
+    await page.evaluate(() => {
+      const editor = (window as any).monaco?.editor?.getEditors?.()?.[0];
+      if (editor) {
+        const model = editor.getModel();
+        if (model) {
+          const fullRange = model.getFullModelRange();
+          editor.executeEdits('test', [
+            {
+              range: fullRange,
+              text: 'not json at all',
+              forceMoveMarkers: true,
+            },
+          ]);
+        }
+      }
+    });
 
     const req = await requestPromise;
     const postData = req.postDataJSON();
@@ -127,10 +158,31 @@ test.describe('ReductStore JSON Toolbox', () => {
     await picker(page, 'Entry').click();
     await clickOption(page, 'entry-picker-option-test-entry', 'test-entry');
 
-    const editor = page.getByRole('textbox', { name: /editor content/i });
-    await editor.fill('{"a":1}');
+    await page.locator('.monaco-editor[role="code"]').waitFor({ state: 'visible', timeout: 10000 });
 
-    const content = await editor.inputValue();
+    await page.evaluate(() => {
+      const editor = (window as any).monaco?.editor?.getEditors?.()?.[0];
+      if (editor) {
+        const model = editor.getModel();
+        if (model) {
+          const fullRange = model.getFullModelRange();
+          editor.executeEdits('test', [
+            {
+              range: fullRange,
+              text: '{"a":1}',
+              forceMoveMarkers: true,
+            },
+          ]);
+        }
+      }
+    });
+
+    await page.waitForTimeout(500);
+
+    const content = await page.evaluate(() => {
+      const editor = (window as any).monaco?.editor?.getEditors?.()?.[0];
+      return editor?.getValue() || '';
+    });
     expect(content).toMatch(/\n/);
   });
 

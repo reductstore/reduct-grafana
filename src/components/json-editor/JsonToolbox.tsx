@@ -27,7 +27,9 @@ export function JsonToolbox({ query, formatCode, onExpand, isExpanded, datasourc
   const [status, setStatus] = React.useState<ValidationStatus>(ValidationStatus.Valid);
   const [error, setError] = React.useState<string | undefined>(undefined);
   const [missingBucket, setMissingBucket] = React.useState<boolean>(!query.bucket);
-  const [missingEntry, setMissingEntry] = React.useState<boolean>(!query.entry);
+  const [missingEntry, setMissingEntry] = React.useState<boolean>(
+    !query.entry && (!query.entries || query.entries.length === 0)
+  );
 
   const toggleExpand = () => onExpand(!isExpanded);
 
@@ -39,7 +41,7 @@ export function JsonToolbox({ query, formatCode, onExpand, isExpanded, datasourc
   useDebounce(
     () => {
       const isBucketMissing = !query.bucket;
-      const isEntryMissing = !query.entry;
+      const isEntryMissing = !query.entry && (!query.entries || query.entries.length === 0);
 
       setMissingBucket(isBucketMissing);
       setMissingEntry(isEntryMissing);
@@ -57,13 +59,16 @@ export function JsonToolbox({ query, formatCode, onExpand, isExpanded, datasourc
       setStatus(ValidationStatus.Loading);
       setError(undefined);
 
+      // Get entry from query.entry or first entry from query.entries
+      const entry = query.entry || (query.entries && query.entries.length > 0 ? query.entries[0] : undefined);
+
       // If JSON is valid, proceed with backend validation
       getBackendSrv()
         .post(
           `/api/datasources/${datasourceId}/resources/validateCondition`,
           {
             bucket: query.bucket,
-            entry: query.entry,
+            entry: entry,
             condition: when,
           },
           {
@@ -85,7 +90,7 @@ export function JsonToolbox({ query, formatCode, onExpand, isExpanded, datasourc
         });
     },
     500,
-    [when, query.bucket, query.entry, datasourceId]
+    [when, query.bucket, query.entry, query.entries, datasourceId]
   );
 
   return (
