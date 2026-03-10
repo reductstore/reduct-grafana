@@ -10,6 +10,7 @@ export enum DataMode {
 export interface ReductQuery extends DataQuery {
   bucket?: string;
   entry?: string;
+  entries?: string[];
   options?: QueryOptions;
 }
 

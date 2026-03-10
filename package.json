@@ -1,6 +1,6 @@
 {
   "name": "reductstore",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "scripts": {
     "build": "webpack -c ./.config/webpack/webpack.config.ts --env production",
     "dev": "webpack -w -c ./.config/webpack/webpack.config.ts --env development",
@@ -78,7 +78,8 @@
     "react-virtualized-auto-sizer": "^1.0.26"
   },
   "overrides": {
-    "qs": "^6.14.1"
+    "qs": "^6.14.1",
+    "serialize-javascript": "^7.0.4"
   },
   "packageManager": "npm@10.9.2"
 }

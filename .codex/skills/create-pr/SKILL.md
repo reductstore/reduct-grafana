@@ -12,11 +12,13 @@ Create a PR using the standardized template from reductstore/.github, then recor
 ## Workflow
 
 ### 1) Preconditions
+
 - Ensure `gh auth status` is logged in and the current branch is the intended PR branch.
 - Ensure the working tree is clean (or only the intended changes are present).
 - Use context from the current conversation to infer intent, scope, and any constraints.
 
 ### 2) Understand changes and rationale
+
 - Compare the current branch against `main` to understand what changed and why (use this to derive the PR title, description, and rationale):
   - `git fetch origin main`
   - `git log --oneline origin/main..HEAD`
@@ -26,6 +28,7 @@ Create a PR using the standardized template from reductstore/.github, then recor
 - If the branch name does not include an issue number, infer the likely issue from changes and conversation context, or leave `Closes #` empty if unsure.
 
 ### 3) Fetch the PR template
+
 Use the helper script to download the latest PR template from reductstore/.github:
 
 ```bash
@@ -35,6 +38,7 @@ Use the helper script to download the latest PR template from reductstore/.githu
 Fill in the template file with the relevant summary, testing, and rationale derived from the diff and conversation context.
 
 ### 4) Create the PR with gh
+
 Use the filled template as the PR body:
 
 ```bash
@@ -48,11 +52,13 @@ gh pr view --json number -q .number
 ```
 
 ### 5) Update CHANGELOG.md
+
 - Find the appropriate section (usually the most recent/unreleased section).
 - Add a new entry following the existing style in the file.
 - Include the PR ID as `#<number>` exactly as prior entries do.
 
 ### 6) Commit (no push)
+
 Stage and commit the changelog update only:
 
 ```bash
@@ -65,4 +71,5 @@ Do not push.
 ## Resources
 
 ### scripts/
+
 - `fetch_pr_template.sh`: Download the latest PR template from reductstore/.github.

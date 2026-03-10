@@ -2,13 +2,40 @@ package plugin
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
 	reductgo "github.com/reductstore/reduct-go"
+	reductmodel "github.com/reductstore/reduct-go/model"
 	"github.com/reductstore/reductstore/pkg/models"
 )
 
 var newReductClient = reductgo.NewClient
+
+const minimumReductStoreVersion = "v1.18.0"
+
+func validateServerVersion(version string) error {
+	serverVersion, err := reductmodel.ParseVersion(version)
+	if err != nil {
+		return fmt.Errorf("unable to determine ReductStore version: %w", err)
+	}
+
+	minimumVersion, err := reductmodel.ParseVersion(minimumReductStoreVersion)
+	if err != nil {
+		return fmt.Errorf("invalid minimum ReductStore version: %w", err)
+	}
+
+	if serverVersion.Major < minimumVersion.Major ||
+		(serverVersion.Major == minimumVersion.Major && serverVersion.Minor < minimumVersion.Minor) {
+		return fmt.Errorf(
+			"ReductStore %s is not supported. Upgrade ReductStore to %s or higher",
+			version,
+			minimumReductStoreVersion,
+		)
+	}
+
+	return nil
+}
 
 // CheckHealth handles health checks sent from Grafana to the plugin.
 // The main use case for these health checks is the test button on the
@@ -44,10 +71,16 @@ func (d *ReductDatasource) CheckHealth(ctx context.Context, req *backend.CheckHe
 	}
 
 	// Test authentication by trying to get server info
-	_, err = client.GetInfo(ctx)
+	serverInfo, err := client.GetInfo(ctx)
 	if err != nil {
 		res.Status = backend.HealthStatusError
 		res.Message = "Authentication failed or server error"
+		return res, nil
+	}
+
+	if err := validateServerVersion(serverInfo.Version); err != nil {
+		res.Status = backend.HealthStatusError
+		res.Message = err.Error()
 		return res, nil
 	}
 

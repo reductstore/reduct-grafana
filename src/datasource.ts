@@ -14,7 +14,8 @@ export class DataSource extends DataSourceWithBackend<ReductQuery, ReductSourceO
     return {
       ...query,
       bucket: templateSrv.replace(query.bucket, scopedVars),
-      entry: templateSrv.replace(query.entry, scopedVars),
+      entry: query.entry ? templateSrv.replace(query.entry, scopedVars) : undefined,
+      entries: query.entries?.map((e) => templateSrv.replace(e, scopedVars)),
       options: {
         ...(query.options ?? {}),
         start: Number(templateSrv.replace(query.options?.start?.toString(), scopedVars)) || undefined,
@@ -25,7 +26,8 @@ export class DataSource extends DataSourceWithBackend<ReductQuery, ReductSourceO
   }
 
   filterQuery(query: ReductQuery): boolean {
-    return !!query.bucket && !!query.entry;
+    const hasEntries = (query.entries && query.entries.length > 0) || !!query.entry;
+    return !!query.bucket && hasEntries;
   }
 
   /**

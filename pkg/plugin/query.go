@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -44,16 +45,21 @@ func (d *ReductDatasource) QueryData(ctx context.Context, req *backend.QueryData
 			"ref_id", q.RefID,
 			"bucket", qm.Bucket,
 			"entry", qm.Entry,
+			"entries", qm.Entries,
 			"mode", qm.Options.Mode,
 			"from", q.TimeRange.From.UTC(),
 			"to", q.TimeRange.To.UTC(),
 		)
 
-		// Validate required fields
-		if qm.Bucket == "" || qm.Entry == "" {
+		entries := qm.Entries
+		if len(entries) == 0 && qm.Entry != "" {
+			entries = []string{qm.Entry}
+		}
+
+		if qm.Bucket == "" || len(entries) == 0 {
 			return &backend.QueryDataResponse{
 				Responses: map[string]backend.DataResponse{
-					q.RefID: backend.ErrDataResponse(backend.StatusBadRequest, "missing bucket or entry"),
+					q.RefID: backend.ErrDataResponse(backend.StatusBadRequest, "missing bucket or entries"),
 				},
 			}, nil
 		}
@@ -84,7 +90,7 @@ func (d *ReductDatasource) QueryData(ctx context.Context, req *backend.QueryData
 		if !to.IsZero() {
 			options.WithStop(to.UnixMicro())
 		}
-		res := d.query(ctx, req.PluginContext, qm.Bucket, qm.Entry, options.Build(), mode)
+		res := d.query(ctx, req.PluginContext, qm.Bucket, entries, options.Build(), mode)
 		// save the response in a hashmap
 		// based on with RefID as identifier
 		response.Responses[q.RefID] = res
@@ -97,7 +103,7 @@ func (d *ReductDatasource) query(
 	ctx context.Context,
 	pCtx backend.PluginContext,
 	bucketName string,
-	entry string,
+	entries []string,
 	options reductgo.QueryOptions,
 	mode ReductMode,
 ) backend.DataResponse {
@@ -108,7 +114,7 @@ func (d *ReductDatasource) query(
 		errors.As(err, &apiErr)
 		return backend.ErrDataResponse(backend.Status(apiErr.Status), apiErr.Message)
 	}
-	records, err := bucket.Query(ctx, entry, &options)
+	records, err := bucket.QueryMany(ctx, entries, &options)
 	if err != nil {
 		log.DefaultLogger.Error("Failed to query", "error", err)
 		var apiErr model.APIError
@@ -136,34 +142,40 @@ func getFrames(records <-chan *reductgo.ReadableRecord, mode ReductMode) []*data
 	}
 
 	result := make([]*data.Frame, 0, len(frames))
-	for _, frame := range frames {
-		// Append timestamp field if not already present
-		result = append(result, frame)
+	keys := make([]string, 0, len(frames))
+	for k := range frames {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		result = append(result, frames[k])
 	}
 	return result
 }
 
-// processContent processes the content of a record and appends it to the frames.
+// processLabels processes the labels of a record and appends them to the frames.
 func processLabels(frames map[string]*data.Frame, kindMap map[string]reflect.Kind, record *reductgo.ReadableRecord) {
+	entryName := record.Entry()
 	for key, labelValue := range record.Labels() {
+		frameKey := entryName + "/" + key
 
 		strValue := fmt.Sprintf("%v", labelValue)
-		initialType, ok := kindMap[key]
+		initialType, ok := kindMap[frameKey]
 		value := parseValue(strValue)
 
 		if !ok {
 			kind := reflect.TypeOf(value).Kind()
-			kindMap[key] = kind
+			kindMap[frameKey] = kind
 			initialType = kind
 		}
 
 		currentType := reflect.TypeOf(value).Kind()
 		if currentType != initialType {
 			// If the type has changed, we need to coerce the value to the initial type
-			log.DefaultLogger.Debug("Type change detected", "key", key, "from", initialType, "to", currentType)
+			log.DefaultLogger.Debug("Type change detected", "key", frameKey, "from", initialType, "to", currentType)
 			val, err := coerceToKind(strValue, initialType)
 			if err != nil {
-				log.DefaultLogger.Error("Failed to coerce value", "key", key, "value", strValue, "error", err)
+				log.DefaultLogger.Error("Failed to coerce value", "key", frameKey, "value", strValue, "error", err)
 				continue
 			}
 			value = val
@@ -171,15 +183,15 @@ func processLabels(frames map[string]*data.Frame, kindMap map[string]reflect.Kin
 
 		switch v := value.(type) {
 		case int64:
-			appendValue(frames, key, record, v)
+			appendValue(frames, frameKey, record, v)
 		case float64:
-			appendValue(frames, key, record, v)
+			appendValue(frames, frameKey, record, v)
 		case bool:
-			appendValue(frames, key, record, v)
+			appendValue(frames, frameKey, record, v)
 		case string:
-			appendValue(frames, key, record, v)
+			appendValue(frames, frameKey, record, v)
 		default:
-			appendValue(frames, key, record, strValue)
+			appendValue(frames, frameKey, record, strValue)
 		}
 	}
 }
@@ -207,19 +219,22 @@ func processContent(
 	flat := map[string]any{}
 	flattenJSON("$", v, flat)
 
+	entryName := record.Entry()
 	for k, val := range flat {
+		// Create entry-prefixed frame key to separate time series per entry
+		frameKey := entryName + "/" + k
 		switch v := val.(type) {
 		case int64:
-			appendValue(frames, k, record, v)
+			appendValue(frames, frameKey, record, v)
 		case float64:
-			appendValue(frames, k, record, v)
+			appendValue(frames, frameKey, record, v)
 		case bool:
-			appendValue(frames, k, record, v)
+			appendValue(frames, frameKey, record, v)
 		case string:
-			appendValue(frames, k, record, v)
+			appendValue(frames, frameKey, record, v)
 		default:
 			str := fmt.Sprintf("%v", val)
-			appendValue(frames, k, record, str)
+			appendValue(frames, frameKey, record, str)
 		}
 	}
 }

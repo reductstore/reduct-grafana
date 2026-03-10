@@ -36,7 +36,7 @@ func NewDatasource(ctx context.Context, settings backend.DataSourceInstanceSetti
 		log.DefaultLogger.Error("server URL is missing")
 		return nil, fmt.Errorf("server URL is missing")
 	}
-	client := reductgo.NewClient(pluginSettings.ServerURL, reductgo.ClientOptions{
+	client := newReductClient(pluginSettings.ServerURL, reductgo.ClientOptions{
 		APIToken:  pluginSettings.Secrets.ServerToken,
 		VerifySSL: pluginSettings.VerifySSL,
 	})
@@ -44,6 +44,17 @@ func NewDatasource(ctx context.Context, settings backend.DataSourceInstanceSetti
 	if err != nil {
 		log.DefaultLogger.Error("check health failed", "error", err)
 		return nil, fmt.Errorf("check health failed: %w", err)
+	}
+
+	serverInfo, err := client.GetInfo(ctx)
+	if err != nil {
+		log.DefaultLogger.Error("get server info failed", "error", err)
+		return nil, fmt.Errorf("Authentication failed or server error")
+	}
+
+	if err := validateServerVersion(serverInfo.Version); err != nil {
+		log.DefaultLogger.Error("unsupported reductstore version", "error", err, "version", serverInfo.Version)
+		return nil, err
 	}
 
 	return &ReductDatasource{reductClient: client}, nil

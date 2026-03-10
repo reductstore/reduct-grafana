@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useCallback } from 'react';
 import * as UI from '@grafana/ui';
 import { SelectableValue } from '@grafana/data';
 
@@ -7,40 +7,47 @@ interface CompatibleSelectProps<T = any> {
   options?: Array<SelectableValue<T>>;
   onChange: (value: SelectableValue<T>) => void;
   testId?: string;
+  loading?: boolean;
 }
 
-export function CompatibleSelect<T>({ value, options = [], onChange, testId }: CompatibleSelectProps<T>) {
+export function CompatibleSelect<T>({ value, options = [], onChange, testId, loading }: CompatibleSelectProps<T>) {
   const Combobox = (UI as any).Combobox;
   const Select = (UI as any).Select;
   const hasCombobox = !!Combobox;
 
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  // test IDs are only for Select, Combobox uses different structure
-  const makeId = (label: any) => `${testId}-option-${String(label).replace(/\s+/g, '-').toLowerCase()}`;
+  const handleComboboxChange = (option: { value: T; label?: string }) => {
+    const selected = options.find((o) => o.value === option.value) || { value: option.value, label: option.label };
+    onChange(selected);
+  };
+
+  const getOptions = useCallback(
+    (inputValue: string) => {
+      if (loading) {
+        return Promise.resolve([]);
+      }
+      const filtered = options.filter((opt) => {
+        const label = (opt.label || String(opt.value)).toLowerCase();
+        return label.includes(inputValue.toLowerCase());
+      });
+      return Promise.resolve(filtered);
+    },
+    [options, loading]
+  );
 
   return (
-    <div ref={containerRef} data-testid={testId}>
+    <div ref={containerRef}>
       {hasCombobox ? (
         <Combobox
           data-testid={testId}
-          value={value}
-          options={options}
-          onChange={onChange}
-          menuPortalTarget={containerRef.current}
-          menuPosition="fixed"
+          value={value?.value ?? null}
+          options={getOptions}
+          onChange={handleComboboxChange}
+          loading={loading}
         />
       ) : (
-        <Select
-          data-testid={testId}
-          value={value}
-          options={options}
-          onChange={onChange}
-          getOptionLabel={(opt: any) => ({
-            ...opt,
-            'data-testid': makeId(opt.label ?? opt.value),
-          })}
-        />
+        <Select data-testid={testId} value={value} options={options} onChange={onChange} isLoading={loading} />
       )}
     </div>
   );

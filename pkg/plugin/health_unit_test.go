@@ -14,10 +14,11 @@ import (
 type stubClient struct {
 	liveErr error
 	infoErr error
+	version string
 }
 
 func (s stubClient) GetInfo(ctx context.Context) (model.ServerInfo, error) {
-	return model.ServerInfo{}, s.infoErr
+	return model.ServerInfo{Version: s.version}, s.infoErr
 }
 func (s stubClient) IsLive(ctx context.Context) (bool, error) { return true, s.liveErr }
 func (s stubClient) GetBuckets(ctx context.Context) ([]model.BucketInfo, error) {
@@ -118,10 +119,23 @@ func TestCheckHealth(t *testing.T) {
 		assert.Equal(t, "Authentication failed or server error", result.Message)
 	})
 
+	t.Run("unsupported server version", func(t *testing.T) {
+		orig := newReductClient
+		newReductClient = func(url string, options reductgo.ClientOptions) reductgo.Client {
+			return stubClient{version: "1.17.0"}
+		}
+		defer func() { newReductClient = orig }()
+
+		result, err := ds.CheckHealth(context.Background(), newCheckHealthRequest(`{"serverURL":"http://x"}`))
+		assert.NoError(t, err)
+		assert.Equal(t, backend.HealthStatusError, result.Status)
+		assert.Equal(t, "ReductStore 1.17.0 is not supported. Upgrade ReductStore to v1.18.0 or higher", result.Message)
+	})
+
 	t.Run("happy path", func(t *testing.T) {
 		orig := newReductClient
 		newReductClient = func(url string, options reductgo.ClientOptions) reductgo.Client {
-			return stubClient{}
+			return stubClient{version: "1.18.0"}
 		}
 		defer func() { newReductClient = orig }()
 
