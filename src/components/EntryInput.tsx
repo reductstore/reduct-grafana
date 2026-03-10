@@ -82,7 +82,7 @@ export function EntryInput({ values, options, onChange, testId }: EntryInputProp
 
   return (
     <div ref={containerRef} data-testid={testId} style={{ display: 'flex', gap: '8px', width: '100%' }}>
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ flex: 1, minWidth: 200 }}>
         {isTextMode ? (
           <Input
             data-testid={`${testId}-wildcard`}
