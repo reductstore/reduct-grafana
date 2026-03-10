@@ -13,6 +13,7 @@ type Props = QueryEditorProps<DataSource, ReductQuery, ReductSourceOptions>;
 
 export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) {
   const [buckets, setBuckets] = useState<Array<SelectableValue<string>>>([]);
+  const [bucketsLoading, setBucketsLoading] = useState(true);
   const [entries, setEntries] = useState<Array<SelectableValue<string>>>([]);
 
   const bucket = query.bucket;
@@ -27,6 +28,7 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
 
   // Load list of buckets
   useEffect(() => {
+    setBucketsLoading(true);
     getBackendSrv()
       .get(`/api/datasources/${datasource.id}/resources/listBuckets`, undefined, undefined, {
         showErrorAlert: false,
@@ -37,6 +39,9 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
       .catch((error) => {
         console.warn('Failed to load buckets:', error);
         setBuckets([]);
+      })
+      .finally(() => {
+        setBucketsLoading(false);
       });
   }, [datasource.id]);
 
@@ -124,18 +129,21 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
             options={buckets}
             value={buckets.find((b) => b.value === bucket)}
             onChange={onBucketChange}
+            loading={bucketsLoading}
           />
         </InlineField>
         <InlineField label="Entry" tooltip="Entry name(s) or wildcard pattern (e.g., sensor-*)" grow>
           <EntryInput testId="entry-picker" options={entries} values={queryEntries} onChange={onEntriesChange} />
         </InlineField>
-        <InlineField label="Scope" tooltip="Controls what the query returns: labels only, content only, or both" grow>
-          <CompatibleSelect
-            testId="scope-picker"
-            options={modeOptions}
-            value={modeOptions.find((m) => m.value === mode)}
-            onChange={onModeChange}
-          />
+        <InlineField label="Scope" tooltip="Controls what the query returns: labels only, content only, or both">
+          <div style={{ width: 150 }}>
+            <CompatibleSelect
+              testId="scope-picker"
+              options={modeOptions}
+              value={modeOptions.find((m) => m.value === mode)}
+              onChange={onModeChange}
+            />
+          </div>
         </InlineField>
       </InlineFieldRow>
       <InlineFieldRow>
