@@ -17,11 +17,12 @@ interface JsonToolboxProps {
   formatCode: () => void;
   onExpand: (expanded: boolean) => void;
   isExpanded: boolean;
-  datasourceId: number;
+  datasourceId?: number;
 }
 
 export function JsonToolbox({ query, formatCode, onExpand, isExpanded, datasourceId }: JsonToolboxProps) {
   const styles = useStyles2(getStyles);
+  const missingDatasource = datasourceId === undefined;
 
   const [when, setWhen] = React.useState(query.options?.when);
   const [status, setStatus] = React.useState<ValidationStatus>(ValidationStatus.Valid);
@@ -47,6 +48,12 @@ export function JsonToolbox({ query, formatCode, onExpand, isExpanded, datasourc
       setMissingEntry(isEntryMissing);
 
       if (isBucketMissing || isEntryMissing) {
+        return;
+      }
+
+      if (missingDatasource) {
+        setStatus(ValidationStatus.Valid);
+        setError(undefined);
         return;
       }
 
@@ -90,30 +97,31 @@ export function JsonToolbox({ query, formatCode, onExpand, isExpanded, datasourc
         });
     },
     500,
-    [when, query.bucket, query.entry, query.entries, datasourceId]
+    [when, query.bucket, query.entry, query.entries, missingDatasource, datasourceId]
   );
 
   return (
     <div className={styles.toolbar}>
       <div className={styles.validation}>
+        {!missingBucket && !missingEntry && missingDatasource && <span>Save the datasource to enable validation</span>}
         {missingBucket && missingEntry && <span>Select bucket and entry to validate condition</span>}
         {missingBucket && !missingEntry && <span>Select bucket to validate condition</span>}
         {!missingBucket && missingEntry && <span>Select entry to validate condition</span>}
-        {!missingBucket && !missingEntry && status === ValidationStatus.Loading && (
+        {!missingBucket && !missingEntry && !missingDatasource && status === ValidationStatus.Loading && (
           <>
             <Spinner size="xs" />
             <span>Validating...</span>
           </>
         )}
 
-        {!missingBucket && !missingEntry && status === ValidationStatus.Valid && (
+        {!missingBucket && !missingEntry && !missingDatasource && status === ValidationStatus.Valid && (
           <>
             <span className={styles.checkmark}>✓</span>
             <span>Valid condition</span>
           </>
         )}
 
-        {!missingBucket && !missingEntry && status === ValidationStatus.Invalid && (
+        {!missingBucket && !missingEntry && !missingDatasource && status === ValidationStatus.Invalid && (
           <>
             <span className={styles.error}>✗</span>
             <span>{error || 'Invalid condition'}</span>
