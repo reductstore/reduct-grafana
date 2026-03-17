@@ -12,6 +12,7 @@ permissions: read-all
 jobs:
   release:
     outputs:
+      archive: ${{ steps.metadata.outputs.archive }}
       plugin-id: ${{ steps.metadata.outputs.plugin-id }}
       plugin-version: ${{ steps.metadata.outputs.plugin-version }}
     permissions:
@@ -52,16 +53,24 @@ jobs:
           sudo apt-get install -y jq
           PLUGIN_ID="$(jq -r '.id' dist/plugin.json)"
           PLUGIN_VERSION="$(jq -r '.info.version' dist/plugin.json)"
+          ARCHIVE="${PLUGIN_ID}-${PLUGIN_VERSION}.zip"
+          echo "archive=${ARCHIVE}" >> "$GITHUB_OUTPUT"
           echo "plugin-id=${PLUGIN_ID}" >> "$GITHUB_OUTPUT"
           echo "plugin-version=${PLUGIN_VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Package plugin
         run: |
           mv dist "${PLUGIN_ID}"
-          zip "${PLUGIN_ID}-${PLUGIN_VERSION}.zip" "${PLUGIN_ID}" -r
+          zip "${ARCHIVE}" "${PLUGIN_ID}" -r
         env:
+          ARCHIVE: ${{ steps.metadata.outputs.archive }}
           PLUGIN_ID: ${{ steps.metadata.outputs.plugin-id }}
           PLUGIN_VERSION: ${{ steps.metadata.outputs.plugin-version }}
+
+      - name: Upload plugin archive to GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.metadata.outputs.archive }}
 
       - name: Prepare Docker plugin artifact
         run: |
