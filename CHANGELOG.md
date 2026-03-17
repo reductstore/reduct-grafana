@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-03-17
+
 ### Added
 
 - Add optional CA certificate path setting for datasource TLS validation, [PR-45](https://github.com/reductstore/reduct-grafana/pull/45)
