@@ -59,10 +59,7 @@ func (d *ReductDatasource) CheckHealth(ctx context.Context, req *backend.CheckHe
 	}
 	// check for server token
 
-	client := newReductClient(pluginSettings.ServerURL, reductgo.ClientOptions{
-		APIToken:  pluginSettings.Secrets.ServerToken,
-		VerifySSL: pluginSettings.VerifySSL,
-	})
+	client := newReductClient(pluginSettings.ServerURL, clientOptionsFromSettings(pluginSettings))
 	_, err = client.IsLive(ctx)
 	if err != nil {
 		res.Status = backend.HealthStatusError

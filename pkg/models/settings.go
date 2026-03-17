@@ -8,9 +8,10 @@ import (
 )
 
 type PluginSettings struct {
-	ServerURL string                `json:"serverURL"`
-	VerifySSL bool                  `json:"verifySSL"`
-	Secrets   *SecretPluginSettings `json:"-"`
+	ServerURL  string                `json:"serverURL"`
+	VerifySSL  bool                  `json:"verifySSL"`
+	CACertPath string                `json:"caCertPath"`
+	Secrets    *SecretPluginSettings `json:"-"`
 }
 
 type SecretPluginSettings struct {
@@ -18,10 +19,24 @@ type SecretPluginSettings struct {
 }
 
 func LoadPluginSettings(source backend.DataSourceInstanceSettings) (*PluginSettings, error) {
-	var settings PluginSettings
-	err := json.Unmarshal(source.JSONData, &settings)
+	var raw struct {
+		ServerURL  string `json:"serverURL"`
+		VerifySSL  *bool  `json:"verifySSL"`
+		CACertPath string `json:"caCertPath"`
+	}
+
+	err := json.Unmarshal(source.JSONData, &raw)
 	if err != nil {
 		return nil, fmt.Errorf("could not unmarshal PluginSettings json: %w", err)
+	}
+
+	settings := PluginSettings{
+		ServerURL:  raw.ServerURL,
+		VerifySSL:  true,
+		CACertPath: raw.CACertPath,
+	}
+	if raw.VerifySSL != nil {
+		settings.VerifySSL = *raw.VerifySSL
 	}
 
 	settings.Secrets = &SecretPluginSettings{
@@ -32,9 +47,15 @@ func LoadPluginSettings(source backend.DataSourceInstanceSettings) (*PluginSetti
 }
 
 func LoadPluginSettingsFromMap(source map[string]string) (*PluginSettings, error) {
+	verifySSL := true
+	if value, ok := source["verifySSL"]; ok && value != "" {
+		verifySSL = value == "true"
+	}
+
 	return &PluginSettings{
-		ServerURL: source["serverURL"],
-		VerifySSL: source["verifySSL"] == "true",
+		ServerURL:  source["serverURL"],
+		VerifySSL:  verifySSL,
+		CACertPath: source["caCertPath"],
 		Secrets: &SecretPluginSettings{
 			ServerToken: source["serverToken"],
 		},

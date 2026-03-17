@@ -38,6 +38,16 @@ export function ConfigEditor(props: Props) {
     });
   };
 
+  const onCACertPathChange = (event: ChangeEvent<HTMLInputElement>) => {
+    onOptionsChange({
+      ...options,
+      jsonData: {
+        ...jsonData,
+        caCertPath: event.target.value,
+      },
+    });
+  };
+
   const onResetServerToken = () => {
     onOptionsChange({
       ...options,
@@ -74,7 +84,20 @@ export function ConfigEditor(props: Props) {
         />
       </InlineField>
       <InlineField label="Verify SSL" labelWidth={20} tooltip="Enable SSL certificate verification">
-        <InlineSwitch id="config-editor-verify-ssl" value={jsonData.verifySSL} onChange={onVerifySSLChange} />
+        <InlineSwitch id="config-editor-verify-ssl" value={jsonData.verifySSL ?? true} onChange={onVerifySSLChange} />
+      </InlineField>
+      <InlineField
+        label="CA Certificate Path"
+        labelWidth={20}
+        tooltip="Optional path to a PEM-encoded CA certificate file on the Grafana host"
+      >
+        <Input
+          id="config-editor-ca-cert-path"
+          value={jsonData.caCertPath || ''}
+          placeholder="/etc/ssl/certs/reduct-ca.pem"
+          onChange={onCACertPathChange}
+          width={40}
+        />
       </InlineField>
     </>
   );

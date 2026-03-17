@@ -36,10 +36,7 @@ func NewDatasource(ctx context.Context, settings backend.DataSourceInstanceSetti
 		log.DefaultLogger.Error("server URL is missing")
 		return nil, fmt.Errorf("server URL is missing")
 	}
-	client := newReductClient(pluginSettings.ServerURL, reductgo.ClientOptions{
-		APIToken:  pluginSettings.Secrets.ServerToken,
-		VerifySSL: pluginSettings.VerifySSL,
-	})
+	client := newReductClient(pluginSettings.ServerURL, clientOptionsFromSettings(pluginSettings))
 	_, err = client.IsLive(ctx)
 	if err != nil {
 		log.DefaultLogger.Error("check health failed", "error", err)

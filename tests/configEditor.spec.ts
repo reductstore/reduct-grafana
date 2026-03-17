@@ -55,4 +55,24 @@ test.describe('ReductStore Config Editor', () => {
       hasText: 'Authentication failed or server error',
     });
   });
+
+  test('should persist the CA certificate path', async ({
+    createDataSourceConfigPage,
+    readProvisionedDataSource,
+    page,
+  }) => {
+    const ds = await readProvisionedDataSource<ReductSourceOptions, SecureJsonData>({ fileName: 'datasources.yml' });
+    const configPage = await createDataSourceConfigPage({ type: ds.type });
+    const caCertPath = '/etc/ssl/certs/ca-certificates.crt';
+
+    await page.getByRole('textbox', { name: 'Token' }).fill(ds.secureJsonData?.serverToken ?? '');
+    await page.getByRole('textbox', { name: 'URL' }).fill(ds.jsonData.serverURL ?? '');
+    await page.getByRole('textbox', { name: 'CA Certificate Path' }).fill(caCertPath);
+
+    await expect(configPage.saveAndTest()).toBeOK();
+
+    await page.reload();
+
+    await expect(page.getByRole('textbox', { name: 'CA Certificate Path' })).toHaveValue(caCertPath);
+  });
 });

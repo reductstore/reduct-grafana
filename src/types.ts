@@ -32,6 +32,7 @@ export interface QueryOptions {
 export interface ReductSourceOptions extends DataSourceJsonData {
   serverURL?: string;
   verifySSL?: boolean;
+  caCertPath?: string;
 }
 
 /**
