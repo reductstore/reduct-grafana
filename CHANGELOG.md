@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Added
+
+- Add optional CA certificate path setting for datasource TLS validation, [PR-45](https://github.com/reductstore/reduct-grafana/pull/45)
+
+### Fixed
+
+- Fix SSL verification handling after the `reduct-go` client option changes, [PR-45](https://github.com/reductstore/reduct-grafana/pull/45)
+
 ## [1.1.0] - 2026-03-10
 
 ### Added
