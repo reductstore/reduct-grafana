@@ -1,6 +1,7 @@
 import { DataSourceInstanceSettings, ScopedVars, DataQueryRequest } from '@grafana/data';
 import { DataSourceWithBackend, getTemplateSrv } from '@grafana/runtime';
 
+import { replaceWhenTemplateVariables } from './templateUtils';
 import { ReductQuery, ReductSourceOptions } from './types';
 
 export class DataSource extends DataSourceWithBackend<ReductQuery, ReductSourceOptions> {
@@ -20,7 +21,7 @@ export class DataSource extends DataSourceWithBackend<ReductQuery, ReductSourceO
         ...(query.options ?? {}),
         start: Number(templateSrv.replace(query.options?.start?.toString(), scopedVars)) || undefined,
         stop: Number(templateSrv.replace(query.options?.stop?.toString(), scopedVars)) || undefined,
-        when: this.applyTemplateVariablesToWhen(query.options?.when, scopedVars),
+        when: replaceWhenTemplateVariables(query.options?.when, scopedVars),
       },
     };
   }
@@ -43,48 +44,5 @@ export class DataSource extends DataSourceWithBackend<ReductQuery, ReductSourceO
         stop: options.range.to.valueOf(),
       },
     };
-  }
-
-  private applyTemplateVariablesToWhen(when: any, scopedVars: ScopedVars): any {
-    if (when === undefined || when === null) {
-      return when;
-    }
-
-    const templateSrv = getTemplateSrv();
-
-    const applyTemplateToValue = (value: any): any => {
-      if (value === null || value === undefined) {
-        return value;
-      }
-
-      if (typeof value === 'string') {
-        return templateSrv.replace(value, scopedVars);
-      }
-
-      if (Array.isArray(value)) {
-        return value.map((item) => applyTemplateToValue(item));
-      }
-
-      if (typeof value === 'object') {
-        return Object.entries(value).reduce((acc, [key, val]) => {
-          acc[key] = applyTemplateToValue(val);
-          return acc;
-        }, {} as Record<string, any>);
-      }
-
-      return value;
-    };
-
-    if (typeof when === 'string') {
-      const sanitized = templateSrv.replace(when, scopedVars);
-      try {
-        const parsed = JSON.parse(sanitized);
-        return applyTemplateToValue(parsed);
-      } catch {
-        return sanitized;
-      }
-    }
-
-    return applyTemplateToValue(when);
   }
 }
