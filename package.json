@@ -80,6 +80,7 @@
     "react-virtualized-auto-sizer": "^1.0.26"
   },
   "overrides": {
+    "flatted": "^3.4.2",
     "qs": "^6.14.1",
     "serialize-javascript": "^7.0.4",
     "uuid": "11.1.0"
