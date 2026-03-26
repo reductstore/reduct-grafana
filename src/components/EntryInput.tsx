@@ -36,7 +36,6 @@ export function EntryInput({ values, options, onChange, testId }: EntryInputProp
     <div ref={containerRef} data-testid={testId} style={{ width: '100%', minWidth: 200 }}>
       {hasMultiCombobox ? (
         <MultiCombobox
-          data-testid={testId}
           value={values}
           options={options}
           onChange={handleMultiComboboxChange}
@@ -45,7 +44,6 @@ export function EntryInput({ values, options, onChange, testId }: EntryInputProp
         />
       ) : (
         <MultiSelect
-          data-testid={testId}
           value={selectedValues}
           options={options}
           onChange={handleMultiSelectChange}
