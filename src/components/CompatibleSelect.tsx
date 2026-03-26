@@ -1,4 +1,4 @@
-import React, { useRef, useCallback } from 'react';
+import React, { useRef } from 'react';
 import * as UI from '@grafana/ui';
 import { SelectableValue } from '@grafana/data';
 
@@ -22,27 +22,13 @@ export function CompatibleSelect<T>({ value, options = [], onChange, testId, loa
     onChange(selected);
   };
 
-  const getOptions = useCallback(
-    (inputValue: string) => {
-      if (loading) {
-        return Promise.resolve([]);
-      }
-      const filtered = options.filter((opt) => {
-        const label = (opt.label || String(opt.value)).toLowerCase();
-        return label.includes(inputValue.toLowerCase());
-      });
-      return Promise.resolve(filtered);
-    },
-    [options, loading]
-  );
-
   return (
     <div ref={containerRef}>
       {hasCombobox ? (
         <Combobox
           data-testid={testId}
           value={value?.value ?? null}
-          options={getOptions}
+          options={options}
           onChange={handleComboboxChange}
           loading={loading}
         />
