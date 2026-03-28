@@ -54,12 +54,12 @@ test.describe('ReductStore Query Editor', () => {
 
     const bucketPicker = page.getByTestId('bucket-picker');
     await bucketPicker.click();
-    await page.getByRole('option', { name: TEST_BUCKET }).click();
+    await page.getByRole('option').filter({ hasText: TEST_BUCKET }).click();
 
     const entryPicker = page.getByTestId('entry-picker');
     await entryPicker.click();
 
-    await expect(page.getByRole('option', { name: 'test-entry' })).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('option').filter({ hasText: 'test-entry' })).toBeVisible({ timeout: 10000 });
   });
 
   test('should execute query when bucket and entry are selected', async ({
@@ -74,11 +74,11 @@ test.describe('ReductStore Query Editor', () => {
 
     const bucketPicker = page.getByTestId('bucket-picker');
     await bucketPicker.click();
-    await page.getByRole('option', { name: TEST_BUCKET }).click();
+    await page.getByRole('option').filter({ hasText: TEST_BUCKET }).click();
 
     const entryPicker = page.getByTestId('entry-picker');
     await entryPicker.click();
-    await page.getByRole('option', { name: 'test-entry' }).click();
+    await page.getByRole('option').filter({ hasText: 'test-entry' }).click();
 
     await expect(await queryReq).toBeTruthy();
   });

@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
 import * as UI from '@grafana/ui';
+import { config } from '@grafana/runtime';
 import { SelectableValue } from '@grafana/data';
 
 interface CompatibleSelectProps<T = any> {
@@ -13,7 +14,8 @@ interface CompatibleSelectProps<T = any> {
 export function CompatibleSelect<T>({ value, options = [], onChange, testId, loading }: CompatibleSelectProps<T>) {
   const Combobox = (UI as any).Combobox;
   const Select = (UI as any).Select;
-  const hasCombobox = !!Combobox;
+  const grafanaMajor = parseInt(config.buildInfo.version.split('.')[0], 10);
+  const hasCombobox = !!Combobox && grafanaMajor >= 12;
 
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -23,17 +25,16 @@ export function CompatibleSelect<T>({ value, options = [], onChange, testId, loa
   };
 
   return (
-    <div ref={containerRef}>
+    <div ref={containerRef} data-testid={testId}>
       {hasCombobox ? (
         <Combobox
-          data-testid={testId}
           value={value?.value ?? null}
           options={options}
           onChange={handleComboboxChange}
           loading={loading}
         />
       ) : (
-        <Select data-testid={testId} value={value} options={options} onChange={onChange} isLoading={loading} />
+        <Select value={value} options={options} onChange={onChange} isLoading={loading} />
       )}
     </div>
   );
