@@ -30,6 +30,12 @@ const implementations: { combobox: any; select: any } = {
   ),
 };
 
+let mockGrafanaMajorVersion = 12;
+
+jest.mock('./grafanaVersion', () => ({
+  getGrafanaMajorVersion: () => mockGrafanaMajorVersion,
+}));
+
 jest.mock('@grafana/ui', () => ({
   get Combobox() {
     return implementations.combobox;
@@ -47,6 +53,7 @@ jest.mock('@grafana/ui', () => ({
 
 describe('CompatibleSelect', () => {
   afterEach(() => {
+    mockGrafanaMajorVersion = 12;
     implementations.combobox = ({ onChange, options, 'data-testid': testId }: any) => {
       const handleClick = async () => {
         const opts = typeof options === 'function' ? await options('') : options;
@@ -77,8 +84,9 @@ describe('CompatibleSelect', () => {
       <CompatibleSelect value={staticOptions[0]} options={staticOptions} onChange={onChange} testId="test-select" />
     );
 
-    const button = screen.getByTestId('test-select');
-    expect(button.tagName).toBe('BUTTON');
+    const wrapper = screen.getByTestId('test-select');
+    const button = wrapper.querySelector('button')!;
+    expect(button).toBeTruthy();
     fireEvent.click(button);
     await screen.findByTestId('test-select');
     expect(onChange).toHaveBeenCalledWith(staticOptions[1]);
@@ -92,8 +100,25 @@ describe('CompatibleSelect', () => {
       <CompatibleSelect value={staticOptions[0]} options={staticOptions} onChange={onChange} testId="test-select" />
     );
 
-    const select = screen.getByTestId('test-select');
-    expect(select.tagName).toBe('SELECT');
+    const wrapper = screen.getByTestId('test-select');
+    const select = wrapper.querySelector('select')!;
+    expect(select).toBeTruthy();
+    fireEvent.change(select, { target: { value: '1' } });
+
+    expect(onChange).toHaveBeenCalledWith(staticOptions[1]);
+  });
+
+  it('falls back to Select when Grafana version is below 12', () => {
+    const onChange = jest.fn();
+    mockGrafanaMajorVersion = 11;
+
+    render(
+      <CompatibleSelect value={staticOptions[0]} options={staticOptions} onChange={onChange} testId="test-select" />
+    );
+
+    const wrapper = screen.getByTestId('test-select');
+    const select = wrapper.querySelector('select')!;
+    expect(select).toBeTruthy();
     fireEvent.change(select, { target: { value: '1' } });
 
     expect(onChange).toHaveBeenCalledWith(staticOptions[1]);

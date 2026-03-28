@@ -1,7 +1,7 @@
 import React, { useRef, useCallback } from 'react';
 import * as UI from '@grafana/ui';
-import { config } from '@grafana/runtime';
 import { SelectableValue } from '@grafana/data';
+import { getGrafanaMajorVersion } from './grafanaVersion';
 
 const MultiCombobox = (UI as any).MultiCombobox;
 const MultiSelect = (UI as any).MultiSelect;
@@ -15,8 +15,7 @@ interface EntryInputProps {
 
 export function EntryInput({ values, options, onChange, testId }: EntryInputProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const grafanaMajor = parseInt(config.buildInfo.version.split('.')[0], 10);
-  const hasMultiCombobox = !!MultiCombobox && grafanaMajor >= 12;
+  const hasMultiCombobox = !!MultiCombobox && getGrafanaMajorVersion() >= 12;
 
   const handleMultiComboboxChange = useCallback(
     (selected: Array<{ value: string; label?: string }>) => {
