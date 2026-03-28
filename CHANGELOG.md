@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Resolve template variables before validating when conditions in the JSON toolbox, [PR-47](https://github.com/reductstore/reduct-grafana/pull/47)
+
 ## [1.2.0] - 2026-03-17
 
 ### Added

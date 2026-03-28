@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { InlineField, InlineFieldRow } from '@grafana/ui';
-import { getBackendSrv } from '@grafana/runtime';
+import { getBackendSrv, getTemplateSrv } from '@grafana/runtime';
 import { QueryEditorProps, SelectableValue } from '@grafana/data';
 import { DataMode, ReductQuery, ReductSourceOptions } from '../types';
 import { DataSource } from '../datasource';
@@ -26,11 +26,19 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
     { label: 'Label & Content', value: DataMode.LabelAndContent },
   ];
 
+  const templateVariables = useMemo(
+    () =>
+      getTemplateSrv()
+        .getVariables()
+        .map((v) => ({ label: `$${v.name}`, value: `$${v.name}` })),
+    []
+  );
+
   // Load list of buckets
   useEffect(() => {
     setBucketsLoading(true);
     getBackendSrv()
-      .get(`/api/datasources/${datasource.id}/resources/listBuckets`, undefined, undefined, {
+      .get(`/api/datasources/uid/${datasource.uid}/resources/listBuckets`, undefined, undefined, {
         showErrorAlert: false,
       })
       .then((res) => {
@@ -43,7 +51,7 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
       .finally(() => {
         setBucketsLoading(false);
       });
-  }, [datasource.id]);
+  }, [datasource.uid]);
 
   // Load entries when bucket changes
   useEffect(() => {
@@ -52,10 +60,11 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
       return;
     }
 
+    const resolvedBucket = getTemplateSrv().replace(bucket);
     getBackendSrv()
       .post(
-        `/api/datasources/${datasource.id}/resources/listEntries`,
-        { bucket },
+        `/api/datasources/uid/${datasource.uid}/resources/listEntries`,
+        { bucket: resolvedBucket },
         {
           showErrorAlert: false,
         }
@@ -67,7 +76,7 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
         console.warn('Failed to load entries:', error);
         setEntries([]);
       });
-  }, [bucket, datasource.id]);
+  }, [bucket, datasource.uid]);
 
   const updateQuery = useCallback(
     (newBucket: string | undefined, newEntries: string[], newMode: DataMode) => {
@@ -126,14 +135,19 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
         <InlineField label="Bucket" tooltip="The bucket to query from" grow>
           <CompatibleSelect
             testId="bucket-picker"
-            options={buckets}
-            value={buckets.find((b) => b.value === bucket)}
+            options={[...templateVariables, ...buckets]}
+            value={[...templateVariables, ...buckets].find((b) => b.value === bucket)}
             onChange={onBucketChange}
             loading={bucketsLoading}
           />
         </InlineField>
         <InlineField label="Entry" tooltip="Entry name(s) or wildcard pattern (e.g., sensor-*)" grow>
-          <EntryInput testId="entry-picker" options={entries} values={queryEntries} onChange={onEntriesChange} />
+          <EntryInput
+            testId="entry-picker"
+            options={[...templateVariables, ...entries]}
+            values={queryEntries}
+            onChange={onEntriesChange}
+          />
         </InlineField>
         <InlineField label="Scope" tooltip="Controls what the query returns: labels only, content only, or both">
           <div style={{ width: 150 }}>

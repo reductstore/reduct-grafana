@@ -23,7 +23,7 @@ export function QueryHeader({ query, datasource, onRunQuery }: QueryHeaderProps)
   useEffect(() => {
     setLoading(true);
     getBackendSrv()
-      .get(`/api/datasources/${datasource.id}/resources/serverInfo`, undefined, undefined, {
+      .get(`/api/datasources/uid/${datasource.uid}/resources/serverInfo`, undefined, undefined, {
         showErrorAlert: false,
       })
       .then((info: ServerInfo) => {
@@ -36,7 +36,7 @@ export function QueryHeader({ query, datasource, onRunQuery }: QueryHeaderProps)
       .finally(() => {
         setLoading(false);
       });
-  }, [datasource.id]);
+  }, [datasource.uid]);
 
   const formatBytes = (bytes?: number): string => {
     if (!bytes) {

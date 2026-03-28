@@ -2,7 +2,8 @@ import React, { useEffect } from 'react';
 import { IconButton, Spinner, Stack, Tooltip, useStyles2 } from '@grafana/ui';
 import { css } from '@emotion/css';
 import { GrafanaTheme2 } from '@grafana/data';
-import { getBackendSrv } from '@grafana/runtime';
+import { getBackendSrv, getTemplateSrv } from '@grafana/runtime';
+import { replaceWhenTemplateVariables } from '../../templateUtils';
 import { ReductQuery } from '../../types';
 import { useDebounce } from 'react-use';
 
@@ -17,12 +18,12 @@ interface JsonToolboxProps {
   formatCode: () => void;
   onExpand: (expanded: boolean) => void;
   isExpanded: boolean;
-  datasourceId?: number;
+  datasourceUid?: string;
 }
 
-export function JsonToolbox({ query, formatCode, onExpand, isExpanded, datasourceId }: JsonToolboxProps) {
+export function JsonToolbox({ query, formatCode, onExpand, isExpanded, datasourceUid }: JsonToolboxProps) {
   const styles = useStyles2(getStyles);
-  const missingDatasource = datasourceId === undefined;
+  const missingDatasource = datasourceUid === undefined;
 
   const [when, setWhen] = React.useState(query.options?.when);
   const [status, setStatus] = React.useState<ValidationStatus>(ValidationStatus.Valid);
@@ -66,17 +67,20 @@ export function JsonToolbox({ query, formatCode, onExpand, isExpanded, datasourc
       setStatus(ValidationStatus.Loading);
       setError(undefined);
 
-      // Get entry from query.entry or first entry from query.entries
-      const entry = query.entry || (query.entries && query.entries.length > 0 ? query.entries[0] : undefined);
+      const templateSrv = getTemplateSrv();
+      const bucket = templateSrv.replace(query.bucket);
+      const entry = templateSrv.replace(
+        query.entry || (query.entries && query.entries.length > 0 ? query.entries[0] : undefined)
+      );
+      const resolvedWhen = replaceWhenTemplateVariables(when);
 
-      // If JSON is valid, proceed with backend validation
       getBackendSrv()
         .post(
-          `/api/datasources/${datasourceId}/resources/validateCondition`,
+          `/api/datasources/uid/${datasourceUid}/resources/validateCondition`,
           {
-            bucket: query.bucket,
-            entry: entry,
-            condition: when,
+            bucket,
+            entry,
+            condition: resolvedWhen,
           },
           {
             showErrorAlert: false,
@@ -97,7 +101,7 @@ export function JsonToolbox({ query, formatCode, onExpand, isExpanded, datasourc
         });
     },
     500,
-    [when, query.bucket, query.entry, query.entries, missingDatasource, datasourceId]
+    [when, query.bucket, query.entry, query.entries, missingDatasource, datasourceUid]
   );
 
   return (

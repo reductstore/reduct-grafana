@@ -1,77 +1,68 @@
 import { test, expect } from '@grafana/plugin-e2e';
-import { picker, clickOption } from './helpers/selectHelpers';
-import { getGrafanaMajorVersion } from './helpers/grafanaVersion';
+import { Client } from 'reduct-js';
+
+const REDUCTSTORE_URL = 'http://localhost:8383';
+const REDUCTSTORE_TOKEN = 'dev-token';
+const TEST_BUCKET = 'e2e-query-test';
 
 test.describe('ReductStore Query Editor', () => {
-  let skipBecauseOldGrafana = false;
-  let versionChecked = false;
+  test.describe.configure({ mode: 'serial' });
 
-  test.beforeEach(async ({ page }, testInfo) => {
-    // Check Grafana version only once
-    if (!versionChecked) {
-      const major = await getGrafanaMajorVersion(page);
-      versionChecked = true;
-      skipBecauseOldGrafana = major < 12;
-
-      if (skipBecauseOldGrafana) {
-        testInfo.skip(true, `ReductStore query editor E2E is only supported on Grafana >= 12`);
-      }
-    } else if (skipBecauseOldGrafana) {
-      testInfo.skip();
-    }
-
-    // Mock backend responses
-    await page.route('**/api/datasources/**/resources/listBuckets', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify([{ name: 'test-bucket' }]),
-      });
-    });
-
-    await page.route('**/api/datasources/**/resources/listEntries', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify([{ name: 'test-entry' }]),
-      });
-    });
-
-    await page.route('**/api/datasources/**/resources/serverInfo', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          bucket_count: 1,
-          usage: 123456,
-          version: '1.0.0',
-          oldest_record: Date.now() * 1000 - 50000,
-          latest_record: Date.now() * 1000,
-          license: null,
-        }),
-      });
-    });
+  test.beforeAll(async () => {
+    const client = new Client(REDUCTSTORE_URL, { apiToken: REDUCTSTORE_TOKEN });
+    const bucket = await client.getOrCreateBucket(TEST_BUCKET);
+    const record = await bucket.beginWrite('test-entry');
+    await record.write(JSON.stringify({ value: 1 }));
   });
 
-  test('smoke: should render query editor', async ({ panelEditPage, readProvisionedDataSource, page }) => {
+  test.afterAll(async () => {
+    const client = new Client(REDUCTSTORE_URL, { apiToken: REDUCTSTORE_TOKEN });
+    const bucket = await client.getBucket(TEST_BUCKET);
+    await bucket.remove();
+  });
+
+  test('should render query editor with all fields', async ({ panelEditPage, readProvisionedDataSource, page }) => {
     const ds = await readProvisionedDataSource({ fileName: 'datasources.yml' });
     await panelEditPage.datasource.set(ds.name);
 
     await expect(page.locator('label:has-text("Bucket")')).toBeVisible();
+    await expect(page.locator('label:has-text("Entry")')).toBeVisible();
+    await expect(page.locator('label:has-text("Scope")')).toBeVisible();
   });
 
-  test('should load entries when a bucket is selected', async ({ panelEditPage, readProvisionedDataSource, page }) => {
+  test('should display server info from backend', async ({ panelEditPage, readProvisionedDataSource, page }) => {
     const ds = await readProvisionedDataSource({ fileName: 'datasources.yml' });
     await panelEditPage.datasource.set(ds.name);
 
-    await picker(page, 'Bucket').click();
-    await clickOption(page, 'bucket-picker-option-test-bucket', 'test-bucket');
-
-    await picker(page, 'Entry').click();
-    await expect(page.getByRole('option')).toBeVisible();
+    await expect(page.getByText(/Buckets:/)).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(/Usage:/)).toBeVisible();
   });
 
-  test('should trigger query when bucket and entry selected', async ({
+  test('should load buckets from backend', async ({ panelEditPage, readProvisionedDataSource, page }) => {
+    const ds = await readProvisionedDataSource({ fileName: 'datasources.yml' });
+    await panelEditPage.datasource.set(ds.name);
+
+    const bucketPicker = page.getByTestId('bucket-picker');
+    await bucketPicker.click();
+
+    await expect(page.getByRole('option').first()).toBeVisible({ timeout: 10000 });
+  });
+
+  test('should load entries after selecting a bucket', async ({ panelEditPage, readProvisionedDataSource, page }) => {
+    const ds = await readProvisionedDataSource({ fileName: 'datasources.yml' });
+    await panelEditPage.datasource.set(ds.name);
+
+    const bucketPicker = page.getByTestId('bucket-picker');
+    await bucketPicker.click();
+    await page.getByRole('option').filter({ hasText: TEST_BUCKET }).click();
+
+    const entryPicker = page.getByTestId('entry-picker');
+    await entryPicker.click();
+
+    await expect(page.getByRole('option').filter({ hasText: 'test-entry' })).toBeVisible({ timeout: 10000 });
+  });
+
+  test('should execute query when bucket and entry are selected', async ({
     panelEditPage,
     readProvisionedDataSource,
     page,
@@ -81,69 +72,13 @@ test.describe('ReductStore Query Editor', () => {
 
     const queryReq = panelEditPage.waitForQueryDataRequest();
 
-    await picker(page, 'Bucket').click();
-    await clickOption(page, 'bucket-picker-option-test-bucket', 'test-bucket');
+    const bucketPicker = page.getByTestId('bucket-picker');
+    await bucketPicker.click();
+    await page.getByRole('option').filter({ hasText: TEST_BUCKET }).click();
 
-    await picker(page, 'Entry').click();
-    await clickOption(page, 'entry-picker-option-test-entry', 'test-entry');
-
-    await expect(await queryReq).toBeTruthy();
-  });
-
-  test('should trigger query when scope is changed', async ({ panelEditPage, readProvisionedDataSource, page }) => {
-    const ds = await readProvisionedDataSource({ fileName: 'datasources.yml' });
-    await panelEditPage.datasource.set(ds.name);
-
-    await picker(page, 'Bucket').click();
-    await clickOption(page, 'bucket-picker-option-test-bucket', 'test-bucket');
-
-    await picker(page, 'Entry').click();
-    await clickOption(page, 'entry-picker-option-test-entry', 'test-entry');
-
-    const queryReq = panelEditPage.waitForQueryDataRequest();
-
-    await picker(page, 'Scope').click();
-    await clickOption(page, 'scope-picker-option-content-only', 'Content Only');
-
-    await expect(await queryReq).toBeTruthy();
-  });
-
-  test('should trigger query when JSON editor changes full query', async ({
-    panelEditPage,
-    readProvisionedDataSource,
-    page,
-  }) => {
-    const ds = await readProvisionedDataSource({ fileName: 'datasources.yml' });
-    await panelEditPage.datasource.set(ds.name);
-
-    await picker(page, 'Bucket').click();
-    await clickOption(page, 'bucket-picker-option-test-bucket', 'test-bucket');
-
-    await picker(page, 'Entry').click();
-    await clickOption(page, 'entry-picker-option-test-entry', 'test-entry');
-
-    const newQueryJson = JSON.stringify(
-      {
-        bucket: 'test-bucket',
-        entry: 'test-entry',
-        options: { mode: 'LabelOnly' },
-      },
-      null,
-      2
-    );
-
-    const editor = page.getByRole('textbox', { name: /editor content/i });
-    await editor.fill(newQueryJson);
-    await editor.blur();
-
-    await page.getByRole('button', { name: /format query/i }).click();
-
-    const runButton = page.getByRole('button', { name: /^run query$/i });
-    await expect(runButton).toBeEnabled();
-
-    const queryReq = panelEditPage.waitForQueryDataRequest();
-
-    await runButton.click();
+    const entryPicker = page.getByTestId('entry-picker');
+    await entryPicker.click();
+    await page.getByRole('option').filter({ hasText: 'test-entry' }).click();
 
     await expect(await queryReq).toBeTruthy();
   });

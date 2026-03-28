@@ -38,7 +38,7 @@ export function JsonEditor({ query, onChange, datasource }: JsonEditorProps) {
                   formatCode={formatCode}
                   onExpand={setIsExpanded}
                   isExpanded={isExpanded}
-                  datasourceId={datasource.id}
+                  datasourceUid={datasource.uid}
                 />
               </div>
             )}
