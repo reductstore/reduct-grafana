@@ -189,7 +189,7 @@ jobs:
         id: filter-versions
         run: |
           matrix='${{ steps.resolve-versions.outputs.matrix }}'
-          filtered=$(echo "$matrix" | jq -c '[.[] | select(.VERSION != "nightly" and (.VERSION | startswith("13.") | not))]')
+          filtered=$(echo "$matrix" | jq -c '[.[] | . as $item | (($item.version // $item.VERSION // "") | tostring) as $v | select($v != "nightly" and ($v | startswith("13.") | not))]')
           echo "matrix=$filtered" >> "$GITHUB_OUTPUT"
 
   playwright-tests:
