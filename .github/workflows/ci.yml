@@ -70,7 +70,10 @@ jobs:
 
       - name: Run reductstore codegen
         if: steps.check-for-backend.outputs.has-backend == 'true'
-        run: docker compose up reductstore -d
+        run: |
+          mkdir -p ./.reductstore
+          sudo chown -R 10001:10001 ./.reductstore
+          docker compose up reductstore -d
 
       - name: Wait for reductstore to become ready
         if: steps.check-for-backend.outputs.has-backend == 'true'
