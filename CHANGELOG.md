@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Enforce least-privilege `GITHUB_TOKEN` defaults in GitHub workflows and scope write permissions to only required jobs, [PR-49](https://github.com/reductstore/reduct-grafana/pull/49)
+
 ### Fixed
 
 - Resolve template variables before validating when conditions in the JSON toolbox, [PR-47](https://github.com/reductstore/reduct-grafana/pull/47)
