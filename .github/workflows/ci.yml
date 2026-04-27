@@ -174,7 +174,7 @@ jobs:
     needs: build
     if: ${{ needs.build.outputs.has-e2e == 'true' }}
     outputs:
-      matrix: ${{ steps.resolve-versions.outputs.matrix }}
+      matrix: ${{ steps.filter-versions.outputs.matrix }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -184,6 +184,13 @@ jobs:
       - name: Resolve Grafana E2E versions
         id: resolve-versions
         uses: grafana/plugin-actions/e2e-version@main # zizmor: ignore[unpinned-uses] provided by grafana
+
+      - name: Filter unstable Grafana E2E versions
+        id: filter-versions
+        run: |
+          matrix='${{ steps.resolve-versions.outputs.matrix }}'
+          filtered=$(echo "$matrix" | jq -c '[.[] | select(.VERSION != "nightly" and (.VERSION | startswith("13.") | not))]')
+          echo "matrix=$filtered" >> "$GITHUB_OUTPUT"
 
   playwright-tests:
     needs: [resolve-versions, build]
