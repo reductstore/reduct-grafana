@@ -72,6 +72,19 @@ jobs:
         if: steps.check-for-backend.outputs.has-backend == 'true'
         run: docker compose up reductstore -d
 
+      - name: Wait for reductstore to become ready
+        if: steps.check-for-backend.outputs.has-backend == 'true'
+        run: |
+          for _ in {1..30}; do
+            if curl -fsS http://127.0.0.1:8383/api/v1/alive > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "reductstore did not become ready in time"
+          docker compose logs reductstore
+          exit 1
+
       - name: Test backend (integration)
         if: steps.check-for-backend.outputs.has-backend == 'true'
         run: go test -tags=integration ./pkg/... -v -cover
