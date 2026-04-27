@@ -10,13 +10,14 @@ on:
 # Alternatively create a fine-grained personal access token for your repository with
 # `contents: read and write` and `pull requests: read and write` and pass it to the action.
 
-permissions:
-  contents: write
-  pull-requests: write
+permissions: read-all
 
 jobs:
   release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - uses: grafana/plugin-actions/create-plugin-update@main # zizmor: ignore[unpinned-uses] provided by grafana
         # Uncomment to use a fine-grained personal access token instead of default github token
