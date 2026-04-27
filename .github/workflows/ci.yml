@@ -225,8 +225,22 @@ jobs:
 
       - name: Start Grafana
         run: |
+          mkdir -p ./.reductstore
+          sudo chown -R 10001:10001 ./.reductstore
           docker compose pull
           ANONYMOUS_AUTH_ENABLED=false DEVELOPMENT=false GRAFANA_VERSION=${{ matrix.GRAFANA_IMAGE.VERSION }} GRAFANA_IMAGE=${{ matrix.GRAFANA_IMAGE.NAME }} docker compose up -d
+
+      - name: Wait for reductstore
+        run: |
+          for _ in {1..30}; do
+            if curl -fsS http://127.0.0.1:8383/api/v1/alive > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "reductstore did not become ready in time"
+          docker compose logs reductstore
+          exit 1
 
       - name: Wait for grafana server
         uses: grafana/plugin-actions/wait-for-grafana@main # zizmor: ignore[unpinned-uses] provided by grafana
