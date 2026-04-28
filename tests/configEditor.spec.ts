@@ -1,4 +1,4 @@
-import { test, expect } from '@grafana/plugin-e2e';
+import { test, expect } from './fixtures';
 import { ReductSourceOptions, SecureJsonData } from '../src/types';
 
 test.describe('ReductStore Config Editor', () => {
