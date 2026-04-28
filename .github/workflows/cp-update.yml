@@ -10,7 +10,8 @@ on:
 # Alternatively create a fine-grained personal access token for your repository with
 # `contents: read and write` and `pull requests: read and write` and pass it to the action.
 
-permissions: read-all
+permissions:
+  contents: read
 
 jobs:
   release:
