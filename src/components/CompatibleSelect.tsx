@@ -26,12 +26,7 @@ export function CompatibleSelect<T>({ value, options = [], onChange, testId, loa
   return (
     <div ref={containerRef} data-testid={testId}>
       {hasCombobox ? (
-        <Combobox
-          value={value?.value ?? null}
-          options={options}
-          onChange={handleComboboxChange}
-          loading={loading}
-        />
+        <Combobox value={value?.value ?? null} options={options} onChange={handleComboboxChange} loading={loading} />
       ) : (
         <Select value={value} options={options} onChange={onChange} isLoading={loading} />
       )}

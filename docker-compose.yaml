@@ -12,5 +12,8 @@ services:
       - RS_LICENSE_PATH=/reduct.lic
       - RS_CORS_ALLOW_ORIGIN=*
     volumes:
-      - ./.reductstore:/data
+      - reductstore-data:/data
       - ~/data/reduct.lic:/reduct.lic:ro
+
+volumes:
+  reductstore-data:

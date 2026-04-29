@@ -1,4 +1,4 @@
-import { test, expect } from '@grafana/plugin-e2e';
+import { test, expect } from './fixtures';
 
 test.describe('ReductStore JSON Toolbox', () => {
   test('should show validation prompt when bucket/entry not selected', async ({

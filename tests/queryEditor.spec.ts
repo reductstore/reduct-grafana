@@ -1,4 +1,4 @@
-import { test, expect } from '@grafana/plugin-e2e';
+import { test, expect } from './fixtures';
 import { Client } from 'reduct-js';
 
 const REDUCTSTORE_URL = 'http://localhost:8383';
