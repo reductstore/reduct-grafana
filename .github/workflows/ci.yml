@@ -165,7 +165,7 @@ jobs:
 
       - name: Resolve Grafana E2E versions
         id: resolve-versions
-        uses: grafana/plugin-actions/e2e-version@main # zizmor: ignore[unpinned-uses] provided by grafana
+        uses: grafana/plugin-actions/e2e-version@016148f3c2f244edb17da23f0d9aa0661b6dbf6f # zizmor: ignore[unpinned-uses] provided by grafana
 
   playwright-tests:
     needs: [resolve-versions, build]
@@ -211,7 +211,7 @@ jobs:
           ANONYMOUS_AUTH_ENABLED=false DEVELOPMENT=false GRAFANA_VERSION=${{ matrix.GRAFANA_IMAGE.VERSION }} GRAFANA_IMAGE=${{ matrix.GRAFANA_IMAGE.NAME }} docker compose up -d
 
       - name: Wait for grafana server
-        uses: grafana/plugin-actions/wait-for-grafana@main # zizmor: ignore[unpinned-uses] provided by grafana
+        uses: grafana/plugin-actions/wait-for-grafana@016148f3c2f244edb17da23f0d9aa0661b6dbf6f # zizmor: ignore[unpinned-uses] provided by grafana
         with:
           url: http://localhost:3000/login
 
@@ -223,7 +223,7 @@ jobs:
         run: npm run e2e
 
       - name: Upload e2e test summary
-        uses: grafana/plugin-actions/playwright-gh-pages/upload-report-artifacts@main # zizmor: ignore[unpinned-uses] provided by grafana
+        uses: grafana/plugin-actions/playwright-gh-pages/upload-report-artifacts@016148f3c2f244edb17da23f0d9aa0661b6dbf6f # zizmor: ignore[unpinned-uses] provided by grafana
         if: ${{ always() && !cancelled() }}
         with:
           upload-report: false
@@ -261,6 +261,6 @@ jobs:
           # required for playwright-gh-pages
           persist-credentials: true
       - name: Publish report
-        uses: grafana/plugin-actions/playwright-gh-pages/deploy-report-pages@main # zizmor: ignore[unpinned-uses] provided by grafana
+        uses: grafana/plugin-actions/playwright-gh-pages/deploy-report-pages@016148f3c2f244edb17da23f0d9aa0661b6dbf6f # zizmor: ignore[unpinned-uses] provided by grafana
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
