@@ -1,4 +1,6 @@
 name: Create Plugin Update
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 on:
   workflow_dispatch:
@@ -20,7 +22,7 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - uses: grafana/plugin-actions/create-plugin-update@main # zizmor: ignore[unpinned-uses] provided by grafana
+      - uses: grafana/plugin-actions/create-plugin-update@016148f3c2f244edb17da23f0d9aa0661b6dbf6f # zizmor: ignore[unpinned-uses] provided by grafana
         # Uncomment to use a fine-grained personal access token instead of default github token
         # (For more info on how to generate the token see https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
         # with:
