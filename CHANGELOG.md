@@ -9,6 +9,7 @@
 
 ### Security
 
+- Pin third-party GitHub Actions by commit SHA across CI/release workflows to harden supply-chain integrity, [PR-54](https://github.com/reductstore/reduct-grafana/pull/54)
 - Upgrade `go.opentelemetry.io/otel/sdk` to v1.43.0 to fix CVE-2026-39883 (high severity), [PR-51](https://github.com/reductstore/reduct-grafana/pull/51)
 
 ## [1.2.0] - 2026-03-17
