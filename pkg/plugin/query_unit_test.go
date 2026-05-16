@@ -1,15 +1,21 @@
 package plugin
 
 import (
+	"context"
+	"encoding/json"
 	"io"
+	"net/http"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/grafana/grafana-plugin-sdk-go/backend"
 	"github.com/grafana/grafana-plugin-sdk-go/data"
 	reductgo "github.com/reductstore/reduct-go"
+	"github.com/reductstore/reduct-go/model"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestProcessLabels(t *testing.T) {
@@ -140,4 +146,43 @@ func TestProcessContent_PreservesJSONTypes(t *testing.T) {
 	assert.Equal(t, data.FieldTypeFloat64, countFrame.Fields[1].Type())
 	assert.Equal(t, float64(42), countFrame.Fields[1].At(0))
 	assert.Equal(t, float64(84), countFrame.Fields[1].At(1))
+}
+
+func makeQueryRequest(bucket, entry string, when any) backend.QueryDataRequest {
+	opts := reductOptions{When: when}
+	q := reductQuery{Bucket: bucket, Entries: []string{entry}, Options: opts}
+	raw, _ := json.Marshal(q)
+	return backend.QueryDataRequest{
+		Queries: []backend.DataQuery{
+			{RefID: "A", JSON: raw},
+		},
+	}
+}
+
+func TestQueryData_BucketAPIError(t *testing.T) {
+	orig := newReductClient
+	newReductClient = func(url string, options reductgo.ClientOptions) reductgo.Client {
+		return stubClient{
+			version:   "1.18.0",
+			bucketErr: &model.APIError{Status: http.StatusUnprocessableEntity, Message: `SQL error: ParserError("Expected: end of statement")`},
+		}
+	}
+	defer func() { newReductClient = orig }()
+
+	instance, err := NewDatasource(context.Background(), newDatasourceSettings(`{"serverURL":"http://x"}`))
+	require.NoError(t, err)
+
+	ds := instance.(*ReductDatasource)
+	req := makeQueryRequest("my-bucket", "my-entry", map[string]any{
+		"#ext": []any{
+			map[string]any{"select": map[string]any{"sql": "SELECT MAX(status) FROM ENTRY() GROUPE BY status"}},
+		},
+	})
+
+	resp, err := ds.QueryData(context.Background(), &req)
+	require.NoError(t, err)
+
+	result := resp.Responses["A"]
+	require.NotNil(t, result.Error, "expected an error response, got nil")
+	assert.Contains(t, result.Error.Error(), "SQL error")
 }
