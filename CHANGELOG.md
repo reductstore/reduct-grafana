@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- Fix invalid queries silently returning empty data instead of surfacing the parser error in the panel, [PR-56](https://github.com/reductstore/reduct-grafana/pull/56)
 - Resolve template variables before validating when conditions in the JSON toolbox, [PR-47](https://github.com/reductstore/reduct-grafana/pull/47)
 - Fix ReductStore container failing with non-root user in v1.19+ by using a named volume for `/data`, [PR-51](https://github.com/reductstore/reduct-grafana/pull/51)
 
