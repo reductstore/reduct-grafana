@@ -224,12 +224,24 @@ func (d *ReductDatasource) handleValidateCondition(ctx context.Context, req *bac
 		})
 	}
 
-	// Close the records channel to clean up
-	go func() {
-		for range records.Records() {
-			// Drain the channel
+	for range records.Records() {
+		// Drain the channel
+	}
+
+	if err := records.Err(); err != nil {
+		log.DefaultLogger.Debug("Query validation failed (streaming)", "error", err)
+		var apiErr *model.APIError
+		errors.As(err, &apiErr)
+		response := map[string]any{
+			"valid": false,
+			"error": apiErr.Message,
 		}
-	}()
+		resp, _ := json.Marshal(response)
+		return sender.Send(&backend.CallResourceResponse{
+			Status: http.StatusOK,
+			Body:   resp,
+		})
+	}
 
 	// If we get here, the condition is valid
 	response := map[string]any{

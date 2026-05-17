@@ -123,6 +123,12 @@ func (d *ReductDatasource) query(
 	}
 
 	frames := getFrames(records.Records(), mode)
+	if err := records.Err(); err != nil {
+		log.DefaultLogger.Error("Failed to stream records", "error", err)
+		var apiErr *model.APIError
+		errors.As(err, &apiErr)
+		return backend.ErrDataResponse(backend.Status(apiErr.Status), apiErr.Message)
+	}
 	return backend.DataResponse{
 		Frames: frames,
 	}
