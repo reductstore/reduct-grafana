@@ -2,11 +2,11 @@
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-05-19
+
 ### Changed
 
 - Update the Grafana Docker base image and local development default to Grafana 12.4.3, [PR-57](https://github.com/reductstore/reduct-grafana/pull/57)
-
-## [1.2.1] - 2026-05-19
 
 ### Fixed
 
