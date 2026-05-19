@@ -189,11 +189,9 @@ func (d *ReductDatasource) handleValidateCondition(ctx context.Context, req *bac
 	bucket, err := d.reductClient.GetBucket(ctx, payload.Bucket)
 	if err != nil {
 		log.DefaultLogger.Error("Failed to get bucket", "bucket", payload.Bucket, "error", err)
-		var apiErr model.APIError
-		errorMsg := fmt.Sprintf("Failed to access bucket '%s'", payload.Bucket)
-		if errors.As(err, &apiErr) {
-			errorMsg = apiErr.Message
-		}
+		var apiErr *model.APIError
+		errors.As(err, &apiErr)
+		errorMsg := apiErr.Message
 		response := map[string]any{
 			"valid": false,
 			"error": errorMsg,
@@ -212,11 +210,9 @@ func (d *ReductDatasource) handleValidateCondition(ctx context.Context, req *bac
 	records, err := bucket.Query(ctx, payload.Entry, &options)
 	if err != nil {
 		log.DefaultLogger.Debug("Query validation failed", "error", err)
-		var apiErr model.APIError
-		errorMsg := "Query validation failed"
-		if errors.As(err, &apiErr) {
-			errorMsg = apiErr.Message
-		}
+		var apiErr *model.APIError
+		errors.As(err, &apiErr)
+		errorMsg := apiErr.Message
 		response := map[string]any{
 			"valid": false,
 			"error": errorMsg,
@@ -228,12 +224,24 @@ func (d *ReductDatasource) handleValidateCondition(ctx context.Context, req *bac
 		})
 	}
 
-	// Close the records channel to clean up
-	go func() {
-		for range records.Records() {
-			// Drain the channel
+	for range records.Records() {
+		// Drain the channel
+	}
+
+	if err := records.Err(); err != nil {
+		log.DefaultLogger.Debug("Query validation failed (streaming)", "error", err)
+		var apiErr *model.APIError
+		errors.As(err, &apiErr)
+		response := map[string]any{
+			"valid": false,
+			"error": apiErr.Message,
 		}
-	}()
+		resp, _ := json.Marshal(response)
+		return sender.Send(&backend.CallResourceResponse{
+			Status: http.StatusOK,
+			Body:   resp,
+		})
+	}
 
 	// If we get here, the condition is valid
 	response := map[string]any{

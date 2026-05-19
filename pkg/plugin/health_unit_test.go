@@ -12,9 +12,10 @@ import (
 )
 
 type stubClient struct {
-	liveErr error
-	infoErr error
-	version string
+	liveErr   error
+	infoErr   error
+	version   string
+	bucketErr error
 }
 
 func (s stubClient) GetInfo(ctx context.Context) (model.ServerInfo, error) {
@@ -31,7 +32,7 @@ func (s stubClient) CreateOrGetBucket(ctx context.Context, name string, settings
 	return reductgo.Bucket{}, nil
 }
 func (s stubClient) GetBucket(ctx context.Context, name string) (reductgo.Bucket, error) {
-	return reductgo.Bucket{}, nil
+	return reductgo.Bucket{}, s.bucketErr
 }
 func (s stubClient) CheckBucketExists(ctx context.Context, name string) (bool, error) {
 	return false, nil
@@ -43,6 +44,12 @@ func (s stubClient) GetToken(ctx context.Context, name string) (model.Token, err
 }
 func (s stubClient) CreateToken(ctx context.Context, name string, permissions model.TokenPermissions) (string, error) {
 	return "", nil
+}
+func (s stubClient) CreateTokenWithOptions(ctx context.Context, name string, options model.TokenCreateOptions) (model.TokenCreateResponse, error) {
+	return model.TokenCreateResponse{}, nil
+}
+func (s stubClient) RotateToken(ctx context.Context, name string) (model.TokenCreateResponse, error) {
+	return model.TokenCreateResponse{}, nil
 }
 func (s stubClient) RemoveToken(ctx context.Context, name string) error { return nil }
 func (s stubClient) GetCurrentToken(ctx context.Context) (model.Token, error) {

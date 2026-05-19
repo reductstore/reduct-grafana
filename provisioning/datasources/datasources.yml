@@ -10,5 +10,6 @@ datasources:
     editable: true
     jsonData:
       serverURL: 'http://reductstore:8383'
+      # serverURL: 'http://host.docker.internal:8383'
     secureJsonData:
       serverToken: 'dev-token'

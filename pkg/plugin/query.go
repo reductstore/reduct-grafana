@@ -110,19 +110,25 @@ func (d *ReductDatasource) query(
 	bucket, err := d.reductClient.GetBucket(ctx, bucketName)
 	if err != nil {
 		log.DefaultLogger.Error("Failed to get bucket", "error", err)
-		var apiErr model.APIError
+		var apiErr *model.APIError
 		errors.As(err, &apiErr)
 		return backend.ErrDataResponse(backend.Status(apiErr.Status), apiErr.Message)
 	}
 	records, err := bucket.QueryMany(ctx, entries, &options)
 	if err != nil {
 		log.DefaultLogger.Error("Failed to query", "error", err)
-		var apiErr model.APIError
+		var apiErr *model.APIError
 		errors.As(err, &apiErr)
 		return backend.ErrDataResponse(backend.Status(apiErr.Status), apiErr.Message)
 	}
 
 	frames := getFrames(records.Records(), mode)
+	if err := records.Err(); err != nil {
+		log.DefaultLogger.Error("Failed to stream records", "error", err)
+		var apiErr *model.APIError
+		errors.As(err, &apiErr)
+		return backend.ErrDataResponse(backend.Status(apiErr.Status), apiErr.Message)
+	}
 	return backend.DataResponse{
 		Frames: frames,
 	}

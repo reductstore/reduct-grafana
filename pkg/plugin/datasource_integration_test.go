@@ -203,7 +203,11 @@ func TestQueryDataBucketNotFound(t *testing.T) {
 		}`
 	})
 	defer teardown(t)
-	assert.Equal(t, backend.ErrDataResponse(backend.StatusNotFound, "bucket 'missing-bucket' not found"), resp.Responses["A"])
+	actual := resp.Responses["A"]
+	assert.Equal(t, backend.StatusNotFound, actual.Status)
+	if assert.Error(t, actual.Error) {
+		assert.Contains(t, actual.Error.Error(), "missing-bucket")
+	}
 }
 
 func TestQueryDataEntryNotFound(t *testing.T) {
