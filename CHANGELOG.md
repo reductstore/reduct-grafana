@@ -4,6 +4,10 @@
 
 ## [1.2.1] - 2026-05-19
 
+### Changed
+
+- Update the Grafana Docker base image and local development default to Grafana 12.4.3, [PR-57](https://github.com/reductstore/reduct-grafana/pull/57)
+
 ### Fixed
 
 - Fix invalid queries silently returning empty data instead of surfacing the parser error in the panel, [PR-56](https://github.com/reductstore/reduct-grafana/pull/56)

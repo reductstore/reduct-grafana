@@ -1,4 +1,4 @@
-FROM docker.io/grafana/grafana:12.0.2
+FROM docker.io/grafana/grafana:12.4.3
 
 USER root
 
