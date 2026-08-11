@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { InlineField, InlineFieldRow } from '@grafana/ui';
+import React, { ChangeEvent, useEffect, useState, useCallback, useMemo } from 'react';
+import { InlineField, InlineFieldRow, InlineSwitch } from '@grafana/ui';
 import { getBackendSrv, getTemplateSrv } from '@grafana/runtime';
 import { QueryEditorProps, SelectableValue } from '@grafana/data';
 import { DataMode, ReductQuery, ReductSourceOptions } from '../types';
@@ -116,6 +116,19 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
     [bucket, queryEntries, updateQuery]
   );
 
+  const onCombinedFrameChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      onChange({
+        ...query,
+        options: { ...(query.options ?? {}), combinedFrame: event.target.checked },
+      });
+      if (bucket && queryEntries.length > 0) {
+        onRunQuery();
+      }
+    },
+    [bucket, query, queryEntries.length, onChange, onRunQuery]
+  );
+
   // Handle changes from JSON editor
   const handleEditorChange = useCallback(
     (newQuery: ReductQuery, process: boolean) => {
@@ -158,6 +171,14 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
               onChange={onModeChange}
             />
           </div>
+        </InlineField>
+        <InlineField label="Combined frame" tooltip="Return all records in one table with time and entry columns">
+          <InlineSwitch
+            id="combined-frame-switch"
+            data-testid="combined-frame-switch"
+            value={query.options?.combinedFrame ?? false}
+            onChange={onCombinedFrameChange}
+          />
         </InlineField>
       </InlineFieldRow>
       <InlineFieldRow>

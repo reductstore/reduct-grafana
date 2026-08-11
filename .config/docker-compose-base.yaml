@@ -11,8 +11,8 @@ services:
         development: ${DEVELOPMENT:-false}
         anonymous_auth_enabled: ${ANONYMOUS_AUTH_ENABLED:-true}
     ports:
-      - 3000:3000/tcp
-      - 2345:2345/tcp # delve
+      - "3000:3000/tcp"
+      - "2345:2345/tcp" # delve
     # extra_hosts:
     #   - 'host.docker.internal:host-gateway'
     security_opt:

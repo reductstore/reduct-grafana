@@ -24,6 +24,7 @@ export interface QueryOptions {
   strict?: boolean;
   continuous?: boolean;
   mode?: DataMode;
+  combinedFrame?: boolean;
 }
 
 /**

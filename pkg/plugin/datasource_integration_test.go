@@ -13,8 +13,10 @@ import (
 	"time"
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
+	"github.com/grafana/grafana-plugin-sdk-go/data"
 	reduct "github.com/reductstore/reduct-go"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func getServerUrl() string {
@@ -144,6 +146,29 @@ func TestQueryData(t *testing.T) {
 	assert.Equal(t, "entity1/string-label", resp.Responses["A"].Frames[idx].Name)
 	assert.Equal(t, "label-0", resp.Responses["A"].Frames[idx].Fields[1].At(0))
 	assert.Equal(t, "label-9", resp.Responses["A"].Frames[idx].Fields[1].At(9))
+}
+
+func TestQueryDataCombinedFrame(t *testing.T) {
+	resp, teardown, _ := runQuery(t, func(bucket string) string {
+		return fmt.Sprintf(`{
+			"Bucket": "%s",
+			"Entry": "entity1",
+			"Options": { "Mode": "LabelAndContent", "CombinedFrame": true }
+		}`, bucket)
+	})
+	defer teardown(t)
+
+	dr := resp.Responses["A"]
+	require.NoError(t, dr.Error)
+	require.Len(t, dr.Frames, 1)
+	frame := dr.Frames[0]
+	assert.Equal(t, "records", frame.Name)
+	assert.Equal(t, data.FrameTypeTable, frame.Meta.Type)
+	assert.Equal(t, 10, frame.Rows())
+	assert.Equal(t, []string{"time", "entry", "$.flag", "$.meta.seq", "$.source_id", "$.str_number", "$.temp", "bool-label", "float-label", "int-label", "string-label"}, frameFieldNames(frame))
+	assert.Equal(t, "entity1", *frame.Fields[1].At(0).(*string))
+	assert.Equal(t, float64(0.25), *frame.Fields[6].At(0).(*float64))
+	assert.Equal(t, int64(0), *frame.Fields[9].At(0).(*int64))
 }
 
 func TestQueryDataWithThen(t *testing.T) {
