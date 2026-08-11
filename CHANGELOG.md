@@ -4,7 +4,7 @@
 
 ### Added
 
-- Add an optional combined labels/content table frame for queries, [#60](https://github.com/reductstore/reduct-grafana/issues/60)
+- Add an optional combined labels/content table frame for queries, [#60](https://github.com/reductstore/reduct-grafana/issues/60), [PR-62](https://github.com/reductstore/reduct-grafana/pull/62)
 
 ## [1.2.1] - 2026-05-19
 
