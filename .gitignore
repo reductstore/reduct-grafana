@@ -60,3 +60,9 @@ private/
 # Packaged files
 reductstore-datasource/
 reductstore-datasource.zip
+
+# Versioned Kilo skills. Other Kilo files are local state or generated assets.
+!.kilo/
+.kilo/*
+!.kilo/skills/
+!.kilo/skills/**
