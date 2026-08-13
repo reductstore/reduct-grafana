@@ -106,7 +106,7 @@ func (d *ReductDatasource) query(
 	entries []string,
 	options reductgo.QueryOptions,
 	mode ReductMode,
-	combinedFrame bool,
+	combineFrames bool,
 ) backend.DataResponse {
 	bucket, err := d.reductClient.GetBucket(ctx, bucketName)
 	if err != nil {
@@ -124,7 +124,7 @@ func (d *ReductDatasource) query(
 	}
 
 	var frames []*data.Frame
-	if combinedFrame {
+	if combineFrames {
 		frames = getCombinedFrame(records.Records(), mode)
 	} else {
 		frames = getFrames(records.Records(), mode)

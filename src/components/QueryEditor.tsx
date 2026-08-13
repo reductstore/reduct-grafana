@@ -172,7 +172,7 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
             />
           </div>
         </InlineField>
-        <InlineField label="Combined frame" tooltip="Return all records in one table with time and entry columns">
+        <InlineField label="Combine frames" tooltip="Return all records in one table with time and entry columns">
           <InlineSwitch
             id="combined-frame-switch"
             data-testid="combined-frame-switch"
