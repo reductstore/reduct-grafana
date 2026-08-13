@@ -95,7 +95,7 @@ test.describe('ReductStore Query Editor', () => {
     await entryPicker.click();
     await page.getByRole('option').filter({ hasText: 'test-entry' }).click();
 
-    const queryReq = panelEditPage.waitForQueryDataRequest();
+    const queryReq = panelEditPage.waitForQueryDataRequest((request) => request.postDataJSON().queries[0].options.combinedFrame);
     await page.locator('input#combined-frame-switch + label').click();
     const requestBody = (await queryReq).postDataJSON();
     expect(requestBody.queries[0].options.combinedFrame).toBe(true);
