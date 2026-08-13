@@ -96,7 +96,7 @@ test.describe('ReductStore Query Editor', () => {
     await page.getByRole('option').filter({ hasText: 'test-entry' }).click();
 
     const queryReq = panelEditPage.waitForQueryDataRequest();
-    await page.getByTestId('combined-frame-switch').click();
+    await page.locator('label[for="combined-frame-switch"]').click();
     const request = await queryReq;
     expect(request.queries[0].options.combinedFrame).toBe(true);
   });
