@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-08-13
+
 ### Added
 
 - Add an optional combined labels/content table frame for queries, [#60](https://github.com/reductstore/reduct-grafana/issues/60), [PR-62](https://github.com/reductstore/reduct-grafana/pull/62)
