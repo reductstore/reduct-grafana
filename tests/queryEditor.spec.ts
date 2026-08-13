@@ -97,7 +97,7 @@ test.describe('ReductStore Query Editor', () => {
 
     const queryReq = panelEditPage.waitForQueryDataRequest();
     await page.locator('input#combined-frame-switch + label').click();
-    const request = await queryReq;
-    expect(request.queries[0].options.combinedFrame).toBe(true);
+    const requestBody = (await queryReq).postDataJSON();
+    expect(requestBody.queries[0].options.combinedFrame).toBe(true);
   });
 });
