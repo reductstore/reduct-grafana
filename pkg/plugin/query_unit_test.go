@@ -148,6 +148,78 @@ func TestProcessContent_PreservesJSONTypes(t *testing.T) {
 	assert.Equal(t, float64(84), countFrame.Fields[1].At(1))
 }
 
+func TestGetCombinedFrame_ScopesAndColumns(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		mode    ReductMode
+		columns []string
+	}{
+		{"labels", ModeLabelOnly, []string{"time", "entry", "label"}},
+		{"content", ModeContentOnly, []string{"time", "entry", "$.value"}},
+		{"both", ModeLabelAndContent, []string{"time", "entry", "$.value", "label"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			frames := getCombinedFrame(combinedRecordChannel(
+				combinedTestRecord("entry-a", 1, `{"value": 42}`, reductgo.LabelMap{"label": "7"}),
+				combinedTestRecord("entry-b", 2, `{"value": 43}`, reductgo.LabelMap{"label": "8"}),
+			), tc.mode)
+
+			require.Len(t, frames, 1)
+			frame := frames[0]
+			assert.Equal(t, "records", frame.Name)
+			assert.Equal(t, data.FrameTypeTable, frame.Meta.Type)
+			assert.Equal(t, 2, frame.Rows())
+			assert.Equal(t, tc.columns, frameFieldNames(frame))
+			assert.Equal(t, "entry-a", *frame.Fields[1].At(0).(*string))
+		})
+	}
+}
+
+func TestGetCombinedFrame_SparseValuesAndCollisions(t *testing.T) {
+	frames := getCombinedFrame(combinedRecordChannel(
+		combinedTestRecord("entry-a", 1, `{"temp":"content", "value": 1}`, reductgo.LabelMap{"time": "label-time", "$.temp": "label-content", "count": "1"}),
+		combinedTestRecord("entry-b", 2, `not json`, reductgo.LabelMap{"count": "bad"}),
+		combinedTestRecord("entry-b", 3, `{"value":"wrong", "other":true}`, reductgo.LabelMap{}),
+	), ModeLabelAndContent)
+
+	require.Len(t, frames, 1)
+	frame := frames[0]
+	assert.Equal(t, []string{"time", "entry", "$.other", "$.temp", "$.value", "count", "label.$.temp", "label.time"}, frameFieldNames(frame))
+	assert.Equal(t, float64(1), *frame.Fields[4].At(0).(*float64))
+	assert.Nil(t, frame.Fields[4].At(1))
+	assert.Nil(t, frame.Fields[4].At(2))
+	assert.Equal(t, int64(1), *frame.Fields[5].At(0).(*int64))
+	assert.Nil(t, frame.Fields[5].At(1))
+	assert.Nil(t, frame.Fields[5].At(2))
+	assert.Nil(t, frame.Fields[3].At(1))
+	assert.Equal(t, "label-content", *frame.Fields[6].At(0).(*string))
+}
+
+func TestGetCombinedFrame_EmptyRecords(t *testing.T) {
+	assert.Empty(t, getCombinedFrame(combinedRecordChannel(), ModeLabelOnly))
+}
+
+func combinedTestRecord(entry string, timestamp int64, body string, labels reductgo.LabelMap) *reductgo.ReadableRecord {
+	return reductgo.NewReadableRecord(entry, timestamp, 0, true, io.NopCloser(strings.NewReader(body)), labels, "application/json")
+}
+
+func combinedRecordChannel(records ...*reductgo.ReadableRecord) <-chan *reductgo.ReadableRecord {
+	ch := make(chan *reductgo.ReadableRecord, len(records))
+	for _, record := range records {
+		ch <- record
+	}
+	close(ch)
+	return ch
+}
+
+func frameFieldNames(frame *data.Frame) []string {
+	names := make([]string, len(frame.Fields))
+	for i, field := range frame.Fields {
+		names[i] = field.Name
+	}
+	return names
+}
+
 func makeQueryRequest(bucket, entry string, when any) backend.QueryDataRequest {
 	opts := reductOptions{When: when}
 	q := reductQuery{Bucket: bucket, Entries: []string{entry}, Options: opts}

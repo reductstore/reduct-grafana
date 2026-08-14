@@ -71,6 +71,22 @@ func (s stubClient) SetReplicationMode(ctx context.Context, name string, mode mo
 	return nil
 }
 func (s stubClient) RemoveReplicationTask(ctx context.Context, name string) error { return nil }
+func (s stubClient) GetLifecycles(ctx context.Context) ([]model.LifecycleInfo, error) {
+	return nil, nil
+}
+func (s stubClient) GetLifecycle(ctx context.Context, name string) (model.FullLifecycleInfo, error) {
+	return model.FullLifecycleInfo{}, nil
+}
+func (s stubClient) CreateLifecycle(ctx context.Context, name string, settings model.LifecycleSettings) error {
+	return nil
+}
+func (s stubClient) UpdateLifecycle(ctx context.Context, name string, settings model.LifecycleSettings) error {
+	return nil
+}
+func (s stubClient) SetLifecycleMode(ctx context.Context, name string, mode model.LifecycleMode) error {
+	return nil
+}
+func (s stubClient) RemoveLifecycle(ctx context.Context, name string) error { return nil }
 
 func newCheckHealthRequest(jsonData string) *backend.CheckHealthRequest {
 	return &backend.CheckHealthRequest{
