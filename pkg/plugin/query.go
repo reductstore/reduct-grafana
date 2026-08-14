@@ -90,7 +90,7 @@ func (d *ReductDatasource) QueryData(ctx context.Context, req *backend.QueryData
 		if !to.IsZero() {
 			options.WithStop(to.UnixMicro())
 		}
-		res := d.query(ctx, req.PluginContext, qm.Bucket, entries, options.Build(), mode)
+		res := d.query(ctx, req.PluginContext, qm.Bucket, entries, options.Build(), mode, qm.Options.CombinedFrame)
 		// save the response in a hashmap
 		// based on with RefID as identifier
 		response.Responses[q.RefID] = res
@@ -106,6 +106,7 @@ func (d *ReductDatasource) query(
 	entries []string,
 	options reductgo.QueryOptions,
 	mode ReductMode,
+	combineFrames bool,
 ) backend.DataResponse {
 	bucket, err := d.reductClient.GetBucket(ctx, bucketName)
 	if err != nil {
@@ -122,7 +123,12 @@ func (d *ReductDatasource) query(
 		return backend.ErrDataResponse(backend.Status(apiErr.Status), apiErr.Message)
 	}
 
-	frames := getFrames(records.Records(), mode)
+	var frames []*data.Frame
+	if combineFrames {
+		frames = getCombinedFrame(records.Records(), mode)
+	} else {
+		frames = getFrames(records.Records(), mode)
+	}
 	if err := records.Err(); err != nil {
 		log.DefaultLogger.Error("Failed to stream records", "error", err)
 		var apiErr *model.APIError
@@ -132,6 +138,218 @@ func (d *ReductDatasource) query(
 	return backend.DataResponse{
 		Frames: frames,
 	}
+}
+
+type combinedRow struct {
+	time   time.Time
+	entry  string
+	values map[string]any
+}
+
+const (
+	labelColumnPrefix   = "label\x00"
+	contentColumnPrefix = "content\x00"
+)
+
+// getCombinedFrame buffers records to discover a stable, nullable table schema.
+func getCombinedFrame(records <-chan *reductgo.ReadableRecord, mode ReductMode) []*data.Frame {
+	rows := make([]combinedRow, 0)
+	labelKeys := make(map[string]struct{})
+	contentKeys := make(map[string]struct{})
+
+	for record := range records {
+		row := combinedRow{time: time.UnixMicro(record.Time()), entry: record.Entry(), values: make(map[string]any)}
+		if mode == "" || mode == ModeLabelOnly || mode == ModeLabelAndContent {
+			for key, value := range record.Labels() {
+				row.values[labelColumnPrefix+key] = fmt.Sprintf("%v", value)
+				labelKeys[key] = struct{}{}
+			}
+		}
+		if mode == ModeContentOnly || mode == ModeLabelAndContent {
+			for key, value := range combinedContentValues(record) {
+				row.values[contentColumnPrefix+key] = value
+				contentKeys[key] = struct{}{}
+			}
+		}
+		rows = append(rows, row)
+	}
+
+	if len(rows) == 0 {
+		return nil
+	}
+
+	columns := combinedColumnNames(labelKeys, contentKeys)
+	fields := []*data.Field{
+		data.NewField("time", nil, combinedTimes(rows)),
+		data.NewField("entry", nil, combinedEntries(rows)),
+	}
+	for _, column := range columns {
+		fields = append(fields, combinedField(column, rows))
+	}
+	frame := data.NewFrame("records", fields...)
+	frame.Meta = &data.FrameMeta{Type: data.FrameTypeTable}
+	return []*data.Frame{frame}
+}
+
+func combinedContentValues(record *reductgo.ReadableRecord) map[string]any {
+	s, err := record.ReadAsString()
+	if err != nil || len(strings.TrimSpace(s)) == 0 || !looksLikeJSON([]byte(s)) {
+		return nil
+	}
+	var value any
+	if json.Unmarshal([]byte(s), &value) != nil {
+		return nil
+	}
+	flat := make(map[string]any)
+	flattenJSON("$", value, flat)
+	return flat
+}
+
+type combinedColumn struct {
+	name string
+	key  string
+}
+
+func combinedColumnNames(labelKeys, contentKeys map[string]struct{}) []combinedColumn {
+	contentNames := make([]string, 0, len(contentKeys))
+	used := map[string]struct{}{"time": {}, "entry": {}}
+	for key := range contentKeys {
+		contentNames = append(contentNames, key)
+		used[key] = struct{}{}
+	}
+	sort.Strings(contentNames)
+
+	columns := make([]combinedColumn, 0, len(labelKeys)+len(contentKeys))
+	for _, key := range contentNames {
+		columns = append(columns, combinedColumn{name: key, key: contentColumnPrefix + key})
+	}
+	labelNames := make([]string, 0, len(labelKeys))
+	for key := range labelKeys {
+		labelNames = append(labelNames, key)
+	}
+	sort.Strings(labelNames)
+	for _, key := range labelNames {
+		name := key
+		if _, exists := used[name]; exists {
+			name = "label." + key
+		}
+		base := name
+		for suffix := 2; ; suffix++ {
+			if _, exists := used[name]; !exists {
+				break
+			}
+			name = fmt.Sprintf("%s.%d", base, suffix)
+		}
+		used[name] = struct{}{}
+		columns = append(columns, combinedColumn{name: name, key: labelColumnPrefix + key})
+	}
+	sort.Slice(columns, func(i, j int) bool { return columns[i].name < columns[j].name })
+	return columns
+}
+
+func combinedTimes(rows []combinedRow) []*time.Time {
+	values := make([]*time.Time, len(rows))
+	for i := range rows {
+		values[i] = &rows[i].time
+	}
+	return values
+}
+
+func combinedEntries(rows []combinedRow) []*string {
+	values := make([]*string, len(rows))
+	for i := range rows {
+		values[i] = &rows[i].entry
+	}
+	return values
+}
+
+func combinedField(column combinedColumn, rows []combinedRow) *data.Field {
+	var kind reflect.Kind
+	for _, row := range rows {
+		value, exists := row.values[column.key]
+		if !exists || value == nil {
+			continue
+		}
+		if strings.HasPrefix(column.key, labelColumnPrefix) {
+			value = parseValue(value.(string))
+		}
+		kind = reflect.TypeOf(value).Kind()
+		break
+	}
+
+	switch kind {
+	case reflect.Int64:
+		values := make([]*int64, len(rows))
+		for i, row := range rows {
+			values[i] = combinedIntValue(row, column, kind)
+		}
+		return data.NewField(column.name, nil, values)
+	case reflect.Float64:
+		values := make([]*float64, len(rows))
+		for i, row := range rows {
+			values[i] = combinedFloatValue(row, column, kind)
+		}
+		return data.NewField(column.name, nil, values)
+	case reflect.Bool:
+		values := make([]*bool, len(rows))
+		for i, row := range rows {
+			values[i] = combinedBoolValue(row, column, kind)
+		}
+		return data.NewField(column.name, nil, values)
+	default:
+		values := make([]*string, len(rows))
+		for i, row := range rows {
+			values[i] = combinedStringValue(row, column, kind)
+		}
+		return data.NewField(column.name, nil, values)
+	}
+}
+
+func combinedValue(row combinedRow, column combinedColumn, kind reflect.Kind) any {
+	value, exists := row.values[column.key]
+	if !exists || value == nil {
+		return nil
+	}
+	if strings.HasPrefix(column.key, labelColumnPrefix) {
+		parsed := parseValue(value.(string))
+		if reflect.TypeOf(parsed).Kind() == kind {
+			return parsed
+		}
+		coerced, err := coerceToKind(value.(string), kind)
+		if err != nil {
+			return nil
+		}
+		return coerced
+	}
+	if reflect.TypeOf(value).Kind() != kind {
+		return nil
+	}
+	return value
+}
+
+func combinedIntValue(row combinedRow, column combinedColumn, kind reflect.Kind) *int64 {
+	if value, ok := combinedValue(row, column, kind).(int64); ok {
+		return &value
+	}
+	return nil
+}
+func combinedFloatValue(row combinedRow, column combinedColumn, kind reflect.Kind) *float64 {
+	if value, ok := combinedValue(row, column, kind).(float64); ok {
+		return &value
+	}
+	return nil
+}
+func combinedBoolValue(row combinedRow, column combinedColumn, kind reflect.Kind) *bool {
+	if value, ok := combinedValue(row, column, kind).(bool); ok {
+		return &value
+	}
+	return nil
+}
+func combinedStringValue(row combinedRow, column combinedColumn, kind reflect.Kind) *string {
+	if value, ok := combinedValue(row, column, kind).(string); ok {
+		return &value
+	}
+	return nil
 }
 
 func getFrames(records <-chan *reductgo.ReadableRecord, mode ReductMode) []*data.Frame {

@@ -28,6 +28,7 @@ test.describe('ReductStore Query Editor', () => {
     await expect(page.locator('label:has-text("Bucket")')).toBeVisible();
     await expect(page.locator('label:has-text("Entry")')).toBeVisible();
     await expect(page.locator('label:has-text("Scope")')).toBeVisible();
+    await expect(page.getByTestId('combined-frame-switch')).not.toBeChecked();
   });
 
   test('should display server info from backend', async ({ panelEditPage, readProvisionedDataSource, page }) => {
@@ -81,5 +82,22 @@ test.describe('ReductStore Query Editor', () => {
     await page.getByRole('option').filter({ hasText: 'test-entry' }).click();
 
     await expect(await queryReq).toBeTruthy();
+  });
+
+  test('should include combined frame in an executed query', async ({ panelEditPage, readProvisionedDataSource, page }) => {
+    const ds = await readProvisionedDataSource({ fileName: 'datasources.yml' });
+    await panelEditPage.datasource.set(ds.name);
+
+    const bucketPicker = page.getByTestId('bucket-picker');
+    await bucketPicker.click();
+    await page.getByRole('option').filter({ hasText: TEST_BUCKET }).click();
+    const entryPicker = page.getByTestId('entry-picker');
+    await entryPicker.click();
+    await page.getByRole('option').filter({ hasText: 'test-entry' }).click();
+
+    const queryReq = panelEditPage.waitForQueryDataRequest((request) => request.postDataJSON().queries[0].options.combinedFrame);
+    await page.locator('input#combined-frame-switch + label').click();
+    const requestBody = (await queryReq).postDataJSON();
+    expect(requestBody.queries[0].options.combinedFrame).toBe(true);
   });
 });

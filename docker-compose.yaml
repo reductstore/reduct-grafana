@@ -6,7 +6,7 @@ services:
   reductstore:
     image: reduct/store:latest
     ports:
-      - 8383:8383
+      - "8383:8383"
     environment:
       - RS_API_TOKEN=${RS_API_TOKEN:-dev-token}
       - RS_LICENSE_PATH=/reduct.lic
