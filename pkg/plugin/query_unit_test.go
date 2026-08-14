@@ -78,8 +78,8 @@ func TestProcessContent_PreservesJSONTypes(t *testing.T) {
 	frames := make(map[string]*data.Frame)
 
 	jsonContent1 := `{
-		"str_number": "123",
-		"source_id": "00000001_000",
+		"id": "100633499604263362",
+		"identifier": "000000000000000420",
 		"temp": 25.5,
 		"flag": true,
 		"count": 42
@@ -96,8 +96,8 @@ func TestProcessContent_PreservesJSONTypes(t *testing.T) {
 	)
 
 	jsonContent2 := `{
-		"str_number": "456",
-		"source_id": "00000002_001",
+		"id": "100633499604263363",
+		"identifier": "000000000000000421",
 		"temp": 30.0,
 		"flag": false,
 		"count": 84
@@ -117,17 +117,17 @@ func TestProcessContent_PreservesJSONTypes(t *testing.T) {
 	processContent(frames, record2)
 
 	// Frame keys are now entry-prefixed
-	strNumFrame, exists := frames["json-entry/$.str_number"]
-	assert.True(t, exists, "json-entry/$.str_number frame should exist")
-	assert.Equal(t, data.FieldTypeString, strNumFrame.Fields[1].Type())
-	assert.Equal(t, "123", strNumFrame.Fields[1].At(0))
-	assert.Equal(t, "456", strNumFrame.Fields[1].At(1))
+	idFrame, exists := frames["json-entry/$.id"]
+	assert.True(t, exists, "json-entry/$.id frame should exist")
+	assert.Equal(t, data.FieldTypeString, idFrame.Fields[1].Type())
+	assert.Equal(t, "100633499604263362", idFrame.Fields[1].At(0))
+	assert.Equal(t, "100633499604263363", idFrame.Fields[1].At(1))
 
-	sourceIdFrame, exists := frames["json-entry/$.source_id"]
-	assert.True(t, exists, "json-entry/$.source_id frame should exist")
-	assert.Equal(t, data.FieldTypeString, sourceIdFrame.Fields[1].Type())
-	assert.Equal(t, "00000001_000", sourceIdFrame.Fields[1].At(0))
-	assert.Equal(t, "00000002_001", sourceIdFrame.Fields[1].At(1))
+	identifierFrame, exists := frames["json-entry/$.identifier"]
+	assert.True(t, exists, "json-entry/$.identifier frame should exist")
+	assert.Equal(t, data.FieldTypeString, identifierFrame.Fields[1].Type())
+	assert.Equal(t, "000000000000000420", identifierFrame.Fields[1].At(0))
+	assert.Equal(t, "000000000000000421", identifierFrame.Fields[1].At(1))
 
 	tempFrame, exists := frames["json-entry/$.temp"]
 	assert.True(t, exists, "json-entry/$.temp frame should exist")
