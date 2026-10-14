@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Preserve numeric label strings as strings in Grafana fields, [PR-64](https://github.com/reductstore/reduct-grafana/pull/64)
+
 ## [1.3.0] - 2026-08-13
 
 ### Added

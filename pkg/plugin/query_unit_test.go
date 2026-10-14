@@ -29,9 +29,9 @@ func TestProcessLabels(t *testing.T) {
 			"stringLabel": "hello",
 		}, ""),
 		reductgo.NewReadableRecord("sensor-1", time.Now().Add(time.Second).UnixMicro(), 0, true, io.NopCloser(strings.NewReader("")), reductgo.LabelMap{
-			"intLabel":    "21.9", // should truncate to 21
+			"intLabel":    "21.9", // coerced to int64(21) via coerceToKind
 			"floatLabel":  "6",
-			"boolLabel":   "false", // should become false
+			"boolLabel":   "false",
 			"stringLabel": "world",
 		}, ""),
 		reductgo.NewReadableRecord("sensor-1", time.Now().Add(2*time.Second).UnixMicro(), 0, true, io.NopCloser(strings.NewReader("")), reductgo.LabelMap{
@@ -72,6 +72,35 @@ func TestProcessLabels(t *testing.T) {
 	assert.Equal(t, 2, len(strFrame.Fields))
 	assert.Equal(t, data.FieldTypeString, strFrame.Fields[1].Type())
 	assert.Equal(t, data.NewField("value", nil, []string{"hello", "world", "stay"}), strFrame.Fields[1])
+}
+
+func TestProcessLabels_PreservesCastNumericStrings(t *testing.T) {
+	frames := make(map[string]*data.Frame)
+	labelKinds := make(map[string]reflect.Kind)
+
+	processLabels(frames, labelKinds, reductgo.NewReadableRecord(
+		"sensor-1",
+		time.Now().UnixMicro(),
+		0,
+		true,
+		io.NopCloser(strings.NewReader("")),
+		reductgo.LabelMap{"identifier": "100633499604263362"},
+		"",
+	))
+	processLabels(frames, labelKinds, reductgo.NewReadableRecord(
+		"sensor-1",
+		time.Now().Add(time.Second).UnixMicro(),
+		0,
+		true,
+		io.NopCloser(strings.NewReader("")),
+		reductgo.LabelMap{"identifier": "000000000000000420"},
+		"",
+	))
+
+	field := frames["sensor-1/identifier"].Fields[1]
+	assert.Equal(t, data.FieldTypeString, field.Type())
+	assert.Equal(t, "100633499604263362", field.At(0))
+	assert.Equal(t, "000000000000000420", field.At(1))
 }
 
 func TestProcessContent_PreservesJSONTypes(t *testing.T) {

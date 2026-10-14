@@ -540,17 +540,20 @@ func coerceToKind(str string, kind reflect.Kind) (any, error) {
 // parseValue parses a string value into the appropriate type based on the kind.
 func parseValue(str string) any {
 	if v, err := strconv.ParseInt(str, 10, 64); err == nil {
-		return v
+		const maxJSSafeInt = int64(1) << 53
+		if strconv.FormatInt(v, 10) == str && v >= -maxJSSafeInt && v <= maxJSSafeInt {
+			return v
+		}
+		return str
 	}
-
 	if v, err := strconv.ParseFloat(str, 64); err == nil {
-		return v
+		if strconv.FormatFloat(v, 'f', -1, 64) == str {
+			return v
+		}
+		return str
 	}
-
 	if v, err := strconv.ParseBool(str); err == nil {
 		return v
 	}
-
-	// Default to string if no other type matches
 	return str
 }
