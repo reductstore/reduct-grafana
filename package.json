@@ -84,18 +84,20 @@
   "overrides": {
     "@protobufjs/utf8": "1.1.1",
     "@tootallnate/once": "3.0.1",
-    "brace-expansion": "1.1.14",
-    "dompurify": "3.4.5",
+    "basic-ftp": "^6.2.3",
+    "brace-expansion": "1.1.21",
+    "browserslist": "^4.29.3",
+    "dompurify": "3.4.17",
     "fast-uri": "^4.2.2",
     "flatted": "^3.4.2",
-    "immutable": "5.1.5",
+    "immutable": "5.1.9",
     "lodash": "4.18.1",
     "minimatch": "9.0.9",
     "picomatch": "4.0.4",
-    "protobufjs": "7.5.9",
+    "protobufjs": "7.6.6",
     "protocol-buffers-schema": "3.6.1",
     "postcss": "8.5.26",
-    "qs": "^6.14.1",
+    "qs": "^6.16.0",
     "react-data-grid": "https://codeload.github.com/grafana/react-data-grid/tar.gz/a10c748f40edc538425b458af4e471a8262ec4ed",
     "serialize-javascript": "7.0.5",
     "uuid": "11.1.1",
@@ -108,7 +110,7 @@
       "yaml": "^2.3.4"
     },
     "@istanbuljs/load-nyc-config": {
-      "js-yaml": "3.15.1"
+      "js-yaml": "3.15.2"
     },
     "source-map-js": "1.2.2",
     "undici": "^8.12.1",
