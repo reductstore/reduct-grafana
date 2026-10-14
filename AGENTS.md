@@ -47,3 +47,44 @@
 - Use Node `>=22` (see `package.json` engines).
 - Do not commit secrets (for example, `GRAFANA_ACCESS_POLICY_TOKEN`).
 - For local matrix checks, use `GRAFANA_VERSION`/`GRAFANA_IMAGE` with `docker compose` as in CI.
+
+## Reproducing CI Locally
+
+**OSV scanner** - run before every PR to catch dependency vulnerabilities the same way CI does:
+
+```bash
+curl -fsSL https://github.com/google/osv-scanner/releases/download/v2.7.0/osv-scanner_linux_amd64 \
+  -o /tmp/osv-scanner && chmod +x /tmp/osv-scanner
+/tmp/osv-scanner scan --lockfile package-lock.json --format table 2>&1 \
+  | awk -F'|' '$3~/[789]\.[0-9]|10\./{print $2,$3,$5,$6}' | tr -s ' '
+```
+
+Fix each finding by adding or bumping the package in the `overrides` block in `package.json`, then:
+
+```bash
+npm install --package-lock-only --ignore-scripts
+npm ci
+```
+
+**E2E tests** - build the plugin, start Grafana + ReductStore via Compose, run Playwright:
+
+```bash
+npm ci && npm run build
+GOFLAGS=-mod=readonly go run github.com/magefile/mage -v buildAll
+ANONYMOUS_AUTH_ENABLED=false DEVELOPMENT=false docker compose up -d
+until curl -fsS http://localhost:3000/api/health; do sleep 1; done
+npm exec playwright install chromium --with-deps
+npm run e2e
+docker compose down
+```
+
+**Digest double-prefix pitfall** - CI passes `GRAFANA_DIGEST` from `docker buildx imagetools inspect`, which already includes the `sha256:` prefix. If the Dockerfile appends it as `@sha256:${grafana_digest}`, CI produces `@sha256:sha256:...` and the build fails while local runs succeed (no env var set, ARG default used). Verify with:
+
+```bash
+digest=$(docker buildx imagetools inspect docker.io/grafana/grafana:latest \
+  --format '{{.Manifest.Digest}}')
+GRAFANA_IMAGE=grafana GRAFANA_VERSION=latest GRAFANA_DIGEST=$digest \
+  docker compose build grafana 2>&1 | grep -E "FROM|error"
+```
+
+If the output contains `@sha256:sha256:` the prefix is doubled and must be stripped before use.
