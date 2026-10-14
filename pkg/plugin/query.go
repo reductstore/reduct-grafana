@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"reflect"
 	"sort"
 	"strconv"
@@ -540,20 +541,27 @@ func coerceToKind(str string, kind reflect.Kind) (any, error) {
 // parseValue parses a string value into the appropriate type based on the kind.
 func parseValue(str string) any {
 	if v, err := strconv.ParseInt(str, 10, 64); err == nil {
-		const maxJSSafeInt = int64(1) << 53
+		const maxJSSafeInt = int64(1<<53) - 1
 		if strconv.FormatInt(v, 10) == str && v >= -maxJSSafeInt && v <= maxJSSafeInt {
 			return v
 		}
 		return str
 	}
 	if v, err := strconv.ParseFloat(str, 64); err == nil {
+		if math.IsNaN(v) || math.IsInf(v, 0) {
+			return str
+		}
+		const maxJSSafeFloat = float64(1<<53) - 1
+		if v == math.Trunc(v) && (v > maxJSSafeFloat || v < -maxJSSafeFloat) {
+			return str
+		}
 		if strconv.FormatFloat(v, 'f', -1, 64) == str {
 			return v
 		}
 		return str
 	}
-	if v, err := strconv.ParseBool(str); err == nil {
-		return v
+	if str == "true" || str == "false" {
+		return str == "true"
 	}
 	return str
 }
