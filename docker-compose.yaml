@@ -4,9 +4,9 @@ services:
       file: .config/docker-compose-base.yaml
       service: grafana
   reductstore:
-    image: reduct/store:latest
+    image: docker.io/reduct/store@sha256:d2a38094151dce0ece1d66610ee015892f9b650d81ee1237b230bc1335208164
     ports:
-      - "8383:8383"
+      - '8383:8383'
     environment:
       - RS_API_TOKEN=${RS_API_TOKEN:-dev-token}
       - RS_LICENSE_PATH=/reduct.lic

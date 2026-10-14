@@ -11,13 +11,15 @@
     "lint:fix": "npm run lint -- --fix && prettier --write --list-different .",
     "e2e": "playwright test",
     "server": "docker compose up --build",
-    "sign": "npx --yes @grafana/sign-plugin@latest"
+    "sign": "sign-plugin"
   },
   "author": "Reductstore",
   "license": "Apache-2.0",
   "devDependencies": {
     "@grafana/eslint-config": "^8.0.0",
+    "@grafana/levitate": "0.18.0",
     "@grafana/plugin-e2e": "^3.11.0",
+    "@grafana/sign-plugin": "3.3.3",
     "@grafana/tsconfig": "^2.0.0",
     "@playwright/test": "^1.55.1",
     "@stylistic/eslint-plugin-ts": "^2.9.0",
@@ -94,6 +96,7 @@
     "protocol-buffers-schema": "3.6.1",
     "postcss": "8.5.26",
     "qs": "^6.14.1",
+    "react-data-grid": "https://codeload.github.com/grafana/react-data-grid/tar.gz/a10c748f40edc538425b458af4e471a8262ec4ed",
     "serialize-javascript": "7.0.5",
     "uuid": "11.1.1",
     "ws": "8.21.3",
