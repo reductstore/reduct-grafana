@@ -50,20 +50,24 @@
 
 ## Reproducing CI Locally
 
-**OSV scanner** - run before every PR to catch dependency vulnerabilities the same way CI does:
+**OSV scanner** - use the exact same `grafana/plugin-validator-cli` container CI uses. It scans both `go.mod` and `package-lock.json`, so the standalone `osv-scanner` binary is not equivalent.
 
 ```bash
-curl -fsSL https://github.com/google/osv-scanner/releases/download/v2.7.0/osv-scanner_linux_amd64 \
-  -o /tmp/osv-scanner && chmod +x /tmp/osv-scanner
-/tmp/osv-scanner scan --lockfile package-lock.json --format table 2>&1 \
-  | awk -F'|' '$3~/[789]\.[0-9]|10\./{print $2,$3,$5,$6}' | tr -s ' '
+npm ci && npm run build
+GOFLAGS=-mod=readonly go run github.com/magefile/mage -v buildAll
+PLUGIN_ID=$(cat dist/plugin.json | jq -r .id)
+PLUGIN_VERSION=$(cat dist/plugin.json | jq -r .info.version)
+ARCHIVE="${PLUGIN_ID}-${PLUGIN_VERSION}.zip"
+cp -r dist "${PLUGIN_ID}" && zip "${ARCHIVE}" "${PLUGIN_ID}" -r -q && rm -rf "${PLUGIN_ID}"
+docker run --pull=always --rm -v "$PWD:/src" -w /src grafana/plugin-validator-cli \
+  -strict -analyzer=osv-scanner -sourceCodeUri file:///src "${ARCHIVE}"
 ```
 
-Fix each finding by adding or bumping the package in the `overrides` block in `package.json`, then:
+Fix each HIGH finding by adding or bumping the package in the `overrides` block in `package.json` (Go findings: bump in `go.mod` with `go get`), then:
 
 ```bash
-npm install --package-lock-only --ignore-scripts
-npm ci
+npm install --package-lock-only --ignore-scripts && npm ci   # JS
+go mod tidy                                                  # Go
 ```
 
 **E2E tests** - build the plugin, start Grafana + ReductStore via Compose, run Playwright:
