@@ -1,8 +1,8 @@
 ARG grafana_version=12.4.3
 ARG grafana_image=grafana-enterprise
-ARG grafana_digest=c7516cc195e0c6fed177006156312cae0a90867274afe9373a45229ed20a7cf7
+ARG grafana_digest=sha256:c7516cc195e0c6fed177006156312cae0a90867274afe9373a45229ed20a7cf7
 
-FROM docker.io/grafana/${grafana_image}:${grafana_version}@sha256:${grafana_digest}
+FROM docker.io/grafana/${grafana_image}:${grafana_version}@${grafana_digest}
 
 ARG anonymous_auth_enabled=true
 ARG development=false

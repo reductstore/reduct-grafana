@@ -8,7 +8,7 @@ services:
       args:
         grafana_image: ${GRAFANA_IMAGE:-grafana-enterprise}
         grafana_version: ${GRAFANA_VERSION:-12.4.3}
-        grafana_digest: ${GRAFANA_DIGEST:-c7516cc195e0c6fed177006156312cae0a90867274afe9373a45229ed20a7cf7}
+        grafana_digest: ${GRAFANA_DIGEST:-sha256:c7516cc195e0c6fed177006156312cae0a90867274afe9373a45229ed20a7cf7}
         development: ${DEVELOPMENT:-false}
         anonymous_auth_enabled: ${ANONYMOUS_AUTH_ENABLED:-true}
     ports:
