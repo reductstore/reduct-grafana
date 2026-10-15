@@ -5,6 +5,7 @@
 ### Fixed
 
 - Preserve numeric label strings as strings in Grafana fields, [PR-64](https://github.com/reductstore/reduct-grafana/pull/64)
+
 ### Security
 
 - Pin Docker images, build toolchains, and CI dependencies to immutable verified sources, [PR-63](https://github.com/reductstore/reduct-grafana/pull/63)
