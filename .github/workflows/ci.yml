@@ -25,6 +25,7 @@ jobs:
       has-backend: ${{ steps.check-for-backend.outputs.has-backend }}
     env:
       GRAFANA_ACCESS_POLICY_TOKEN: ${{ secrets.GRAFANA_ACCESS_POLICY_TOKEN }}
+      GOFLAGS: -mod=readonly
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -32,7 +33,7 @@ jobs:
       - name: Setup Node.js environment
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          node-version: '22'
+          node-version-file: '.nvmrc'
           cache: 'npm'
 
       - name: Install dependencies
@@ -59,14 +60,18 @@ jobs:
         if: steps.check-for-backend.outputs.has-backend == 'true'
         uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
-          go-version: '^1.24.11'
+          go-version-file: 'go.mod'
+          check-latest: false
+
+      - name: Verify Go modules
+        if: steps.check-for-backend.outputs.has-backend == 'true'
+        run: |
+          go mod download
+          go mod verify
 
       - name: Test backend (unit only)
         if: steps.check-for-backend.outputs.has-backend == 'true'
-        uses: magefile/mage-action@a662bd8c29d8106879588cfff83b2faf6e6f59db # v4.0.0
-        with:
-          version: latest
-          args: coverage
+        run: go run github.com/magefile/mage -v coverage
 
       - name: Run reductstore codegen
         if: steps.check-for-backend.outputs.has-backend == 'true'
@@ -82,10 +87,7 @@ jobs:
 
       - name: Build backend
         if: steps.check-for-backend.outputs.has-backend == 'true'
-        uses: magefile/mage-action@a662bd8c29d8106879588cfff83b2faf6e6f59db # v4.0.0
-        with:
-          version: latest
-          args: buildAll
+        run: go run github.com/magefile/mage -v buildAll
 
       - name: Check for E2E
         id: check-for-e2e
@@ -126,7 +128,7 @@ jobs:
           docker run --pull=always --rm \
             -v "$PWD:/src" \
             -w /src \
-            grafana/plugin-validator-cli \
+            docker.io/grafana/plugin-validator-cli@sha256:404b0b3af8db3d27d2b481737c8b2444ba48395860fc5a5197d274553180778b \
               -strict \
               -analyzer=osv-scanner \
               -sourceCodeUri file:///src \
@@ -138,7 +140,7 @@ jobs:
         run: |
           docker run --pull=always \
             -v $PWD/${ARCHIVE}:/archive.zip \
-            grafana/plugin-validator-cli -analyzer=metadatavalid /archive.zip
+            docker.io/grafana/plugin-validator-cli@sha256:404b0b3af8db3d27d2b481737c8b2444ba48395860fc5a5197d274553180778b -analyzer=metadatavalid /archive.zip
         env:
           ARCHIVE: ${{ steps.metadata.outputs.archive }}
 
@@ -201,16 +203,27 @@ jobs:
       - name: Setup Node.js environment
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          node-version: '22'
+          node-version-file: '.nvmrc'
           cache: 'npm'
 
       - name: Install dev dependencies
         run: npm ci
 
+      - name: Resolve Grafana image digest
+        id: grafana-image
+        env:
+          GRAFANA_IMAGE: ${{ matrix.GRAFANA_IMAGE.NAME }}
+          GRAFANA_VERSION: ${{ matrix.GRAFANA_IMAGE.VERSION }}
+        run: |
+          image="docker.io/grafana/${GRAFANA_IMAGE}:${GRAFANA_VERSION}"
+          digest="$(docker buildx imagetools inspect "${image}" --format '{{.Manifest.Digest}}')"
+          test -n "${digest}"
+          echo "digest=${digest}" >> "${GITHUB_OUTPUT}"
+
       - name: Start Grafana
         run: |
-          docker compose pull
-          ANONYMOUS_AUTH_ENABLED=false DEVELOPMENT=false GRAFANA_VERSION=${{ matrix.GRAFANA_IMAGE.VERSION }} GRAFANA_IMAGE=${{ matrix.GRAFANA_IMAGE.NAME }} docker compose up -d
+          docker compose pull reductstore
+          ANONYMOUS_AUTH_ENABLED=false DEVELOPMENT=false GRAFANA_VERSION=${{ matrix.GRAFANA_IMAGE.VERSION }} GRAFANA_IMAGE=${{ matrix.GRAFANA_IMAGE.NAME }} GRAFANA_DIGEST=${{ steps.grafana-image.outputs.digest }} docker compose up -d
 
       - name: Wait for grafana server
         uses: grafana/plugin-actions/wait-for-grafana@016148f3c2f244edb17da23f0d9aa0661b6dbf6f # zizmor: ignore[unpinned-uses] provided by grafana

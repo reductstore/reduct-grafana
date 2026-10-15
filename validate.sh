@@ -6,12 +6,21 @@ set -e
 PLUGIN_ID="reductstore-datasource"
 BUILD_DIR=".build"
 ZIP_PATH="$BUILD_DIR/${PLUGIN_ID}.zip"
+VALIDATOR_IMAGE="docker.io/grafana/plugin-validator-cli@sha256:404b0b3af8db3d27d2b481737c8b2444ba48395860fc5a5197d274553180778b"
+
+
+echo "==> Installing locked frontend dependencies"
+npm ci
 
 echo "==> Building frontend"
 npm run build
 
+echo "==> Verifying Go modules"
+GOFLAGS=-mod=readonly go mod download
+GOFLAGS=-mod=readonly go mod verify
+
 echo "==> Building backend (Linux only)"
-mage -v build:linux || true
+GOFLAGS=-mod=readonly go run github.com/magefile/mage -v build:linux
 
 echo "==> Preparing build dir"
 mkdir -p "$BUILD_DIR"
@@ -26,7 +35,7 @@ echo "==> Running plugin validator (osv-scanner)"
 sudo docker run --pull=always --rm \
   -v "$PWD:/src" \
   -w /src \
-  grafana/plugin-validator-cli \
+  "$VALIDATOR_IMAGE" \
     -strict \
     -analyzer=osv-scanner \
     -sourceCodeUri file:///src \
@@ -35,6 +44,6 @@ sudo docker run --pull=always --rm \
 echo "==> Running plugin validator (metadata)"
 sudo docker run --pull=always --rm \
   -v "$PWD/$ZIP_PATH":/archive.zip \
-  grafana/plugin-validator-cli -analyzer=metadatavalid /archive.zip
+  "$VALIDATOR_IMAGE" -analyzer=metadatavalid /archive.zip
 
 echo "==> Validation complete"
