@@ -47,3 +47,48 @@
 - Use Node `>=22` (see `package.json` engines).
 - Do not commit secrets (for example, `GRAFANA_ACCESS_POLICY_TOKEN`).
 - For local matrix checks, use `GRAFANA_VERSION`/`GRAFANA_IMAGE` with `docker compose` as in CI.
+
+## Reproducing CI Locally
+
+**OSV scanner** - use the exact same `grafana/plugin-validator-cli` container CI uses. It scans both `go.mod` and `package-lock.json`, so the standalone `osv-scanner` binary is not equivalent.
+
+```bash
+npm ci && npm run build
+GOFLAGS=-mod=readonly go run github.com/magefile/mage -v buildAll
+PLUGIN_ID=$(cat dist/plugin.json | jq -r .id)
+PLUGIN_VERSION=$(cat dist/plugin.json | jq -r .info.version)
+ARCHIVE="${PLUGIN_ID}-${PLUGIN_VERSION}.zip"
+cp -r dist "${PLUGIN_ID}" && zip "${ARCHIVE}" "${PLUGIN_ID}" -r -q && rm -rf "${PLUGIN_ID}"
+docker run --pull=always --rm -v "$PWD:/src" -w /src grafana/plugin-validator-cli \
+  -strict -analyzer=osv-scanner -sourceCodeUri file:///src "${ARCHIVE}"
+```
+
+Fix each HIGH finding by adding or bumping the package in the `overrides` block in `package.json` (Go findings: bump in `go.mod` with `go get`), then:
+
+```bash
+npm install --package-lock-only --ignore-scripts && npm ci   # JS
+go mod tidy                                                  # Go
+```
+
+**E2E tests** - build the plugin, start Grafana + ReductStore via Compose, run Playwright:
+
+```bash
+npm ci && npm run build
+GOFLAGS=-mod=readonly go run github.com/magefile/mage -v buildAll
+ANONYMOUS_AUTH_ENABLED=false DEVELOPMENT=false docker compose up -d
+until curl -fsS http://localhost:3000/api/health; do sleep 1; done
+npm exec playwright install chromium --with-deps
+npm run e2e
+docker compose down
+```
+
+**Digest double-prefix pitfall** - CI passes `GRAFANA_DIGEST` from `docker buildx imagetools inspect`, which already includes the `sha256:` prefix. If the Dockerfile appends it as `@sha256:${grafana_digest}`, CI produces `@sha256:sha256:...` and the build fails while local runs succeed (no env var set, ARG default used). Verify with:
+
+```bash
+digest=$(docker buildx imagetools inspect docker.io/grafana/grafana:latest \
+  --format '{{.Manifest.Digest}}')
+GRAFANA_IMAGE=grafana GRAFANA_VERSION=latest GRAFANA_DIGEST=$digest \
+  docker compose build grafana 2>&1 | grep -E "FROM|error"
+```
+
+If the output contains `@sha256:sha256:` the prefix is doubled and must be stripped before use.

@@ -29,9 +29,9 @@ func TestProcessLabels(t *testing.T) {
 			"stringLabel": "hello",
 		}, ""),
 		reductgo.NewReadableRecord("sensor-1", time.Now().Add(time.Second).UnixMicro(), 0, true, io.NopCloser(strings.NewReader("")), reductgo.LabelMap{
-			"intLabel":    "21.9", // should truncate to 21
+			"intLabel":    "21.9", // coerced to int64(21) via coerceToKind
 			"floatLabel":  "6",
-			"boolLabel":   "false", // should become false
+			"boolLabel":   "false",
 			"stringLabel": "world",
 		}, ""),
 		reductgo.NewReadableRecord("sensor-1", time.Now().Add(2*time.Second).UnixMicro(), 0, true, io.NopCloser(strings.NewReader("")), reductgo.LabelMap{
@@ -72,6 +72,41 @@ func TestProcessLabels(t *testing.T) {
 	assert.Equal(t, 2, len(strFrame.Fields))
 	assert.Equal(t, data.FieldTypeString, strFrame.Fields[1].Type())
 	assert.Equal(t, data.NewField("value", nil, []string{"hello", "world", "stay"}), strFrame.Fields[1])
+}
+
+func TestProcessLabels_PreservesCastNumericStrings(t *testing.T) {
+	cases := []struct {
+		input     string
+		wantType  data.FieldType
+		wantValue any
+	}{
+		{"100633499604263362", data.FieldTypeString, "100633499604263362"},  // > maxJSSafeInt, must stay string
+		{"000000000000000420", data.FieldTypeString, "000000000000000420"},  // leading zeros, round-trip fails
+		{"9007199254740992", data.FieldTypeString, "9007199254740992"},      // == 2^53, one past safe boundary
+		{"9007199254740991", data.FieldTypeInt64, int64(9007199254740991)},  // == 2^53-1, safe boundary
+		{"100000000000000000000", data.FieldTypeString, "100000000000000000000"}, // > int64 max, large float
+		{"NaN", data.FieldTypeString, "NaN"},                               // non-finite, must stay string
+		{"TRUE", data.FieldTypeString, "TRUE"},                             // non-canonical bool
+		{"true", data.FieldTypeBool, true},                                 // canonical bool
+		{"false", data.FieldTypeBool, false},                               // canonical bool
+		{"42", data.FieldTypeInt64, int64(42)},                             // normal int stays numeric
+		{"3.14", data.FieldTypeFloat64, float64(3.14)},                     // normal float stays numeric
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.input, func(t *testing.T) {
+			frames := make(map[string]*data.Frame)
+			labelKinds := make(map[string]reflect.Kind)
+			processLabels(frames, labelKinds, reductgo.NewReadableRecord(
+				"sensor-1", time.Now().UnixMicro(), 0, true,
+				io.NopCloser(strings.NewReader("")),
+				reductgo.LabelMap{"v": tc.input}, "",
+			))
+			field := frames["sensor-1/v"].Fields[1]
+			assert.Equal(t, tc.wantType, field.Type(), "input %q: wrong field type", tc.input)
+			assert.Equal(t, tc.wantValue, field.At(0), "input %q: wrong value", tc.input)
+		})
+	}
 }
 
 func TestProcessContent_PreservesJSONTypes(t *testing.T) {
